@@ -157,10 +157,10 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
 
     // Unlike other captures, make sure to remove the "enpassant'd" pawn from the enemy bitboard
     if (is_enpassant) {
-        Piece pawn = lP;
+        Piece pawn = dP;
         Direction dir = NORTH;
         if (main->state.side) {
-            pawn = dP;
+            pawn = lP;
             dir = SOUTH;
         }
         pop_bit(main->pos.piece[pawn], target + dir);
@@ -189,19 +189,19 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
             set_bit(main->pos.piece[lR], d1);
             break;
         case g8:
-            pop_bit(main->pos.piece[lR], h8);
-            set_bit(main->pos.piece[lR], f8);
+            pop_bit(main->pos.piece[dR], h8);
+            set_bit(main->pos.piece[dR], f8);
             break;
         case c8:
-            pop_bit(main->pos.piece[lR], a8);
-            set_bit(main->pos.piece[lR], d8);
+            pop_bit(main->pos.piece[dR], a8);
+            set_bit(main->pos.piece[dR], d8);
             break;
         default:
             break;
         }
     }
     main->state.castling &= castling_rights[source];
-    main->state.castling &= castling_rights[source];
+    main->state.castling &= castling_rights[target];
     // Manually update the units bitboard because of the manual
     // manipulations of the piece bitboards
     pos_update_units(&main->pos);

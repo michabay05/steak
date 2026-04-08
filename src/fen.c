@@ -89,9 +89,9 @@ FENInfo parse_fen(const char *fen) {
     fen++;
 
     if (*fen != '-') {
-        int file = 8 - (*fen - 'a');
+        int file = *fen - 'a';
         fen++;
-        int rank = *fen - '0';
+        int rank = 8 - (*fen - '0');
         info.enpassant = SQ(rank, file);
         fen++;
     } else {

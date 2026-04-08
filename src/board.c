@@ -90,6 +90,7 @@ void board_print(const Board *const b) {
     }
     printf("      a   b   c   d   e   f   g   h\n\n");
     printf("        Side: %s\n", !b->state.side ? "white" : "black");
+    printf("   Enpassant: %s\n", str_coords[b->state.enpassant]);
     // printf("    Castling: ");
     // print_castling(b->state.castling);
     printf("       Moves: %d\n", b->state.full_moves);
@@ -103,11 +104,8 @@ bool board_is_sq_attacked(const Board *const b, Sq sq, PieceColor side) {
     if ((side == DARK) && (pawn_attacks[LIGHT][sq] & b->pos.piece[dP]))
         return true;
     // Attacked by knights
-    if (knight_attacks[sq] & b->pos.piece[side == LIGHT ? lN : dN]) {
-        if (sq == e1)
-            printf("E1 IS ATTACKED BY THE KNIGHT OF 'F3'");
+    if (knight_attacks[sq] & b->pos.piece[side == LIGHT ? lN : dN])
         return true;
-    }
     // Attacked by bishops
     if (get_bishop_attack(sq, b->pos.units[BOTH]) & b->pos.piece[side == LIGHT ? lB : dB])
         return true;
