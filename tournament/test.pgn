@@ -1,0 +1,27 @@
+[Event "Play vs Bot"]
+[Site "Chess.com"]
+[Date "2026.04.10"]
+[Round "?"]
+[White "null"]
+[Black "Wendy"]
+[Result "1-0"]
+[BlackElo "1500"]
+[WhiteElo "null"]
+[Termination "by checkmate"]
+[ECO "D32"]
+[EndDate "2026.04.10"]
+[Link "https://www.chess.com/play/computer"]
+
+1. d4 {1.d4 :) Ok, let's see what we can cook up here $1} 1... Nf6 {We may see
+some sparks in this game after 1...Nf6 $1} 2. c4 e6 {J'aime un feu chaud.} 3. Nf3
+d5 4. cxd5 {Things are beginning to heat up, non $2} 4... exd5 5. Nc3 c5 6. Bg5
+Bd6 7. e3 O-O 8. Bd3 h6 9. Bh4 c4 10. Bc2 Nc6 11. O-O g5 12. Bg3 Re8 13. Bxd6
+Qxd6 14. b3 Qb4 15. Qd2 g4 16. Ne5 Nxe5 17. dxe5 Rxe5 18. a3 {It's too cold in
+here for my liking.} 18... Qf8 19. bxc4 dxc4 20. Rfd1 b5 21. Qd4 Qe8 22. a4 Bf5
+23. Bxf5 Rxf5 24. Nxb5 Qb8 25. Rab1 Kh7 26. Nd6 Qh8 27. Nxf5 {My attack is
+getting cold, I need to go get some more firewood $1} 27... c3 28. Qxc3 Rc8 29.
+Qe5 h5 30. g3 Rc4 31. Rd6 Ng8 32. Qxh8+ {Brrrrrr. It is getting cold in here.}
+32... Kxh8 {I should be able to attack you easier without your queen to defend $1}
+33. Rb8 Kh7 34. Rb7 Rxa4 35. Rxf7+ {That's not very nice.} 35... Kh8 36. Ne7
+Nxe7 37. Rxe7 {C'est très, très mauvais $1} 37... Ra1+ {It's getting toasty in
+here $1} 38. Kg2 Rd1 39. Rxd1 a5 40. Rd8# 1-0
