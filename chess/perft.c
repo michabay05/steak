@@ -18,7 +18,7 @@ uint64_t nodes;
 
 // perft driver
 static inline void perft_driver(Board *board, int depth) {
-    // reccursion escape condition
+    // recursion escape condition
     if (depth == 0) {
         // increment nodes count (count reached positions)
         nodes++;
