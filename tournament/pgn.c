@@ -5,7 +5,8 @@
 #include <string.h>
 
 #include "../nob.h"
-#include "chess.h"
+#include "../chess/chess.h"
+#include "util.c"
 
 #define BUF_SIZE 64 * 1024
 #define UNKNOWN_ROUND -1
@@ -103,38 +104,24 @@ static void token_append(
     da_append(tl, t);
 }
 
-#if 0
-static void token_print(PGN_Token t)
-{
-    const char* kind_str;
+static const char *token_to_cstr(PGN_Token t) {
     switch (t.kind) {
-        case PGN_TK_TAG_KEY:
-            kind_str = "key";
-            break;
-        case PGN_TK_TAG_VALUE:
-            kind_str = "value";
-            break;
-        case PGN_TK_MOVE:
-            kind_str = "move";
-            break;
-        case PGN_TK_COMMENT:
-            kind_str = "comment";
-            break;
-        case PGN_TK_GAME_OUTCOME:
-            kind_str = "outcome";
-            break;
+        case PGN_TK_TAG_KEY: return "key";
+        case PGN_TK_TAG_VALUE: return "value";
+        case PGN_TK_MOVE: return "move";
+        case PGN_TK_COMMENT: return "comment";
+        case PGN_TK_GAME_OUTCOME: return "outcome";
+        default: UNREACHABLE("Unknown kind of token");
     }
-    printf("[TOKEN: %7s] %s\n", kind_str, t.lexeme);
 }
-#endif
 
 /* ================== UTIL FUNCTIONS ================ */
-bool is_period(char c) { return c == '.'; }
-
-bool is_not_quote(char c) { return c != '"'; }
-bool is_not_space(char c) { return !isspace(c); }
-bool is_not_right_curly(char c) { return c != '}'; }
-bool is_not_period(char c) { return c != '.'; }
+int is_period(char c) { return c == '.'; }
+int is_not_quote(char c) { return c != '"'; }
+int is_not_space(char c) { return !isspace(c); }
+int is_not_right_curly(char c) { return c != '}'; }
+int is_not_period(char c) { return c != '.'; }
+int is_digit(char c) { return isdigit(c); }
 /* ================================================== */
 
 static void pgn__parse_lines(Nob_String_View *sv, PGN_TokenList *tl) {
@@ -164,9 +151,17 @@ static void pgn__parse_lines(Nob_String_View *sv, PGN_TokenList *tl) {
             token_append(tl, temp, PGN_TK_COMMENT);
 
             consume(sv); // Consume '}'
-        } else if (is_move_number(sv)) {
-            consume_while(NULL, sv, &is_not_period);
-            consume_while(NULL, sv, &is_period);
+        } else if (isdigit(c)) {
+            int offset = peek_while(*sv, &is_digit);
+            char ltr = peek_ahead(*sv, offset);
+            if (ltr == '.') {
+                // Move number
+                // NOTE: +1 for the period
+                consume_ahead(sv, offset + 1);
+            } else if (ltr == '-') {
+                String_View outcome = consume_ahead(sv, offset + 2);
+                token_append(tl, outcome, PGN_TK_GAME_OUTCOME);
+            }
         } else if (is_move_text(sv)) {
             consume_while(&temp, sv, &is_not_space);
             token_append(tl, temp, PGN_TK_MOVE);
@@ -228,13 +223,17 @@ static void pgn__parse(PGN *pgn, const PGN_TokenList tl) {
     }
 }
 
-void pgn_print(const PGN *const pgn) {
-    printf("Event: "SV_Fmt"\n", SV_Arg(pgn->event));
-    printf(" Site: "SV_Fmt"\n", SV_Arg(pgn->site));
-    printf(" Date: "SV_Fmt"\n", SV_Arg(pgn->date));
-    printf("Round: %d\n", pgn->round);
-    printf("White: "SV_Fmt"\n", SV_Arg(pgn->white_player));
-    printf("Black: "SV_Fmt"\n", SV_Arg(pgn->black_player));
+void pgn_print(PGN pgn) {
+    printf("Event: "SV_Fmt"\n", SV_Arg(pgn.event));
+    printf(" Site: "SV_Fmt"\n", SV_Arg(pgn.site));
+    printf(" Date: "SV_Fmt"\n", SV_Arg(pgn.date));
+    if (pgn.round >= 0) {
+        printf("Round: %d\n", pgn.round);
+    } else {
+        printf("Round: unknown\n");
+    }
+    printf("White: "SV_Fmt"\n", SV_Arg(pgn.white_player));
+    printf("Black: "SV_Fmt"\n", SV_Arg(pgn.black_player));
 }
 
 bool pgn_read(char *filepath, PGN *pgn) {
@@ -251,7 +250,12 @@ bool pgn_read(char *filepath, PGN *pgn) {
     PGN_TokenList tl = {0};
     pgn__parse_lines(&sv, &tl);
 
-    tl.items[tl.count - 1].kind = PGN_TK_GAME_OUTCOME;
+    for (int i = 0; i < tl.count; i++) {
+        PGN_Token tok = tl.items[i];
+        printf("[%d] (%s) "SV_Fmt"\n",
+            i, token_to_cstr(tok), SV_Arg(tok.lexeme));
+    }
+
     pgn__parse(pgn, tl);
 
     return true;

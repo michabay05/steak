@@ -1,5 +1,3 @@
-#pragma once
-
 #define is_at_end(size, ind) (ind) >= (size)
 char peek_ahead(String_View sv, size_t ahead) {
     if (sv.count == 0) return '\0';
@@ -8,16 +6,24 @@ char peek_ahead(String_View sv, size_t ahead) {
 }
 #define peek(sv) peek_ahead(sv, 0)
 
-char consume(String_View *sv) {
-    if (sv->count == 0) return '\0';
+String_View consume_ahead(String_View *sv, int n) {
+    if (sv->count == 0) return (String_View){0};
+    return sv_chop_left(sv, n);
+}
+#define consume(sv) consume_ahead(sv, 1)
 
-    char output = sv->data[0];
-    String_View temp = sv_chop_left(sv, 1);
-    return temp.data[0];
+int peek_while(String_View sv, int (*filter_func)(char c)) {
+    int len = 0;
+    while (filter_func(peek_ahead(sv, len))) {
+        // consume(sv);
+        len++;
+    }
+
+    return len;
 }
 
 void consume_while(String_View *out, String_View *sv,
-    bool (*filter_func)(char c)
+    int (*filter_func)(char c)
 ) {
     int len = 0;
     while (filter_func(peek_ahead(*sv, len))) {
