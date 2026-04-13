@@ -1,7 +1,3 @@
-#pragma once
-
-#include "defs.h"
-
 typedef struct
 {
     Piece board[64];

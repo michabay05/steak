@@ -1,5 +1,3 @@
-#include "fen.h"
-
 FENInfo parse_fen(const char *fen) {
     FENInfo info = {0};
     // Piece placements

@@ -1,6 +1,3 @@
-#include "move.h"
-#include "defs.h"
-
 Move move_encode(Sq source, Sq target, Piece piece, Piece promoted, bool isCapture,
                  bool isTwoSquarePush, bool isEnpassant, bool isCastling) {
     return source | (target << 6) | (piece << 12) | (promoted << 16) | (isCapture << 20) |

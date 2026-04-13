@@ -1,16 +1,9 @@
-#pragma once
-
-#include "defs.h"
-#include "fen.h"
-
-typedef struct
-{
+typedef struct {
     uint64_t piece[12];
     uint64_t units[3];
 } Position;
 
-typedef struct
-{
+typedef struct {
     PieceColor side;
     int castling;
     Sq enpassant;
@@ -18,8 +11,7 @@ typedef struct
     int full_moves;
 } State;
 
-typedef struct
-{
+typedef struct {
     Position pos;
     State state;
 } Board;

@@ -1,8 +1,3 @@
-#pragma once
-
-#include "bitboard.h"
-#include "defs.h"
-
 // LEAPER PIECES
 extern uint64_t pawn_attacks[2][64];
 extern uint64_t knight_attacks[64];
@@ -14,9 +9,12 @@ extern uint64_t bishop_attacks[64][512];
 extern uint64_t rook_occ_mask[64];
 extern uint64_t rook_attacks[64][4096];
 
+extern const uint64_t bishop_magics[64];
+extern const uint64_t rook_magics[64];
+
 void attack_init();
 void attack_init_leapers();
-void attack_init_sliding();
+void attack_init_sliding(PieceType pt);
 
 void gen_pawn_attacks(PieceColor color, Sq sq);
 void gen_knight_attacks(Sq sq);

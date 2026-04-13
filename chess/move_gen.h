@@ -1,9 +1,3 @@
-#pragma once
-
-#include "board.h"
-#include "defs.h"
-#include "move.h"
-
 #define MOVE_GEN_MAX 256
 typedef struct
 {

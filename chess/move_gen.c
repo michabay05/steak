@@ -1,6 +1,3 @@
-#include "move_gen.h"
-#include "precalculate.h"
-
 void movelist_add(MoveList *ml, Move move) {
     assert(ml->count < MOVE_GEN_MAX);
     ml->list[ml->count++] = move;

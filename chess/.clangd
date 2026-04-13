@@ -1,0 +1,13 @@
+If:
+  PathMatch: [.*\.h, .*\.c]
+  PathExclude: chess.h
+
+CompileFlags:
+  Add:
+    - "-include defs.h"
+    - "-include bitboard.h"
+    - "-include precalculate.h"
+    - "-include fen.h"
+    - "-include board.h"
+    - "-include move.h"
+    - "-include move_gen.h"

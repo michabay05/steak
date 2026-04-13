@@ -1,14 +1,14 @@
 #include <stdio.h>
-#include <string.h>
 #include <unistd.h>
 
-#include "comm.h"
+#define NOB_IMPLEMENTATION
+#include "comm.c"
 
 #define BUF_SIZE 64*1024
 
 int main(void) {
     Engine engine = {0};
-    char *engine_path = "../stockfish/stockfish-ubuntu-x86-64-avx2";
+    char *engine_path = "../stockfish-ubuntu-x86-64-avx2";
     if (!load_engine(engine_path, &engine)) {
         fprintf(stderr, "Failed to load engine!\n");
         return 1;

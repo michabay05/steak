@@ -1,8 +1,3 @@
-#pragma once
-
-#include "board.h"
-#include "defs.h"
-
 typedef enum {
     AllMoves,
     CapturesOnly,

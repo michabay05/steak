@@ -1,10 +1,9 @@
-#pragma once
-
 // Common standard header files
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 // clang-format off
 typedef enum {
