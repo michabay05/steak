@@ -1,3 +1,6 @@
+#include "precalculate.h"
+#include "bitboard.h"
+
 // LEAPER PIECES
 uint64_t pawn_attacks[2][64];
 uint64_t knight_attacks[64];
@@ -22,13 +25,13 @@ const int rook_relevant_bits[64] = {
     10, 10, 10, 11, 11, 10, 10, 10, 10, 10, 10, 11, 12, 11, 11, 11, 11, 11, 11, 12,
 };
 
-void attack_init() {
+void attack_init(void) {
     attack_init_leapers();
     attack_init_sliding(BISHOP);
     attack_init_sliding(ROOK);
 }
 
-void attack_init_leapers() {
+void attack_init_leapers(void) {
     for (int sq = 0; sq < 64; sq++) {
         gen_pawn_attacks(LIGHT, sq);
         gen_pawn_attacks(DARK, sq);
@@ -262,7 +265,7 @@ uint64_t set_occupancy(const int index, const int relevantBits, uint64_t occMask
 
 uint32_t randomState = 1804289383;
 
-uint32_t random_u32() {
+uint32_t random_u32(void) {
     uint32_t number = randomState;
 
     // XOR shift algorithm
@@ -277,7 +280,7 @@ uint32_t random_u32() {
     return number;
 }
 
-uint64_t random_u64() {
+uint64_t random_u64(void) {
     uint64_t rand1, rand2, rand3, rand4;
     rand1 = (uint64_t)(random_u32() & 0xFFFF);
     rand2 = (uint64_t)(random_u32() & 0xFFFF);
@@ -286,7 +289,7 @@ uint64_t random_u64() {
     return rand1 | (rand2 << 16) | (rand3 << 32) | (rand4 << 48);
 }
 
-uint64_t pseudo_random_magic() { return random_u64() & random_u64() & random_u64(); }
+uint64_t pseudo_random_magic(void) { return random_u64() & random_u64() & random_u64(); }
 
 uint64_t find_magics(const Sq sq, const int relevant_bits, const PieceType piece) {
     // 4096(1 << 12) - because it's maximum possible occupancy variations
@@ -320,7 +323,7 @@ uint64_t find_magics(const Sq sq, const int relevant_bits, const PieceType piece
     return 0;
 }
 
-void magics_init() {
+void magics_init(void) {
     int sq;
     printf("ROOK: {\n");
     for (sq = 0; sq < 64; sq++)

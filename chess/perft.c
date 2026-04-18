@@ -1,16 +1,12 @@
-#include "chess.c"
-#include "chess.h"
-
 #include <sys/time.h>
 
-static int get_time_ms() {
-#ifdef WIN64
-    return GetTickCount();
-#else
+#include "precalculate.h"
+#include "move_gen.h"
+
+static int get_time_ms(void) {
     struct timeval time_value;
     gettimeofday(&time_value, NULL);
     return time_value.tv_sec * 1000 + time_value.tv_usec / 1000;
-#endif
 }
 
 // leaf nodes (number of positions reached during the test of the move generator at a given depth)
@@ -87,10 +83,11 @@ void perft_test(Board *board, int depth) {
         *board = clone;
 
         // print move
-        printf("     move: %s%s%c  nodes: %ld\n", str_coords[move_get_source(ml.list[i])],
-               str_coords[move_get_target(ml.list[i])],
-               move_get_promoted(ml.list[i]) ? piece_char[move_get_promoted(ml.list[i])] : ' ',
-               old_nodes);
+        printf("     move: %s%s%c  nodes: %ld\n",
+            str_coords[ml.list[i].source],
+            str_coords[ml.list[i].target],
+            move_get_promoted(ml.list[i]) ? piece_char[move_get_promoted(ml.list[i])] : ' ',
+            old_nodes);
     }
 
     // print results
@@ -103,9 +100,9 @@ int main(void) {
     attack_init();
 
     Board board;
-    FENInfo fen_info = parse_fen("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10");
+    FENInfo fen_info = parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
     board_set_from_fen(&board, fen_info);
     board_print(&board);
 
-    perft_test(&board, 6);
+    perft_test(&board, 5);
 }

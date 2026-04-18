@@ -1,3 +1,8 @@
+#include "move_gen.h"
+#include "bitboard.h"
+#include "move.h"
+#include "precalculate.h"
+
 void movelist_add(MoveList *ml, Move move) {
     assert(ml->count < MOVE_GEN_MAX);
     ml->list[ml->count++] = move;
@@ -6,15 +11,15 @@ void movelist_add(MoveList *ml, Move move) {
 Move movelist_search(const MoveList ml, Sq source, Sq target, Piece promoted) {
     for (int i = 0; i < ml.count; i++) {
         // Parse move info
-        Sq listMoveSource = move_get_source(ml.list[i]);
-        Sq listMoveTarget = move_get_target(ml.list[i]);
+        Sq listMoveSource = ml.list[i].source;
+        Sq listMoveTarget = ml.list[i].target;
         Piece listMovePromoted = move_get_promoted(ml.list[i]);
         // Check if source and target match
         if (listMoveSource == source && listMoveTarget == target && listMovePromoted == promoted)
             // Return index of move from movelist, if true
             return ml.list[i];
     }
-    return 0;
+    return (Move){0};
 }
 
 void movelist_print_list(const MoveList ml) {
@@ -26,10 +31,12 @@ void movelist_print_list(const MoveList ml) {
     for (int i = 0; i < ml.count; i++) {
         printf("       %s    |    %s     |    %c    |     %c      |     %d     |   "
                "      %d         |      %d      |     %d\n",
-               str_coords[move_get_source(ml.list[i])], str_coords[move_get_target(ml.list[i])],
-               piece_char[move_get_piece(ml.list[i])], piece_char[move_get_promoted(ml.list[i])],
-               move_is_capture(ml.list[i]), move_is_two_square_push(ml.list[i]),
-               move_is_enpassant(ml.list[i]), move_is_castling(ml.list[i]));
+               str_coords[ml.list[i].source], str_coords[ml.list[i].target],
+               piece_char[ml.list[i].piece], piece_char[ml.list[i].promoted],
+               ml.list[i].flag == MVF_Capture,
+               ml.list[i].flag == MVF_TwoSquarePush,
+               ml.list[i].flag == MVF_Enpassant,
+               ml.list[i].flag == MVF_Castling);
     }
     printf("\n    Total number of moves: %d\n", ml.count);
 }
@@ -63,19 +70,19 @@ static void movelist_gen_pawn(MoveList *ml, const Board *const b) {
             // Quiet moves
             // Promotion
             if ((source >= promotionStart) && (source <= promotionStart + 7)) {
+                movelist_add(ml, move_encode(
+                    source, target, piece, (b->state.side == LIGHT ? lQ : dQ), MVF_Quiet));
                 movelist_add(ml, move_encode(source, target, piece,
-                                             (b->state.side == LIGHT ? lQ : dQ), 0, 0, 0, 0));
+                    (b->state.side == LIGHT ? lR : dR), MVF_Quiet));
                 movelist_add(ml, move_encode(source, target, piece,
-                                             (b->state.side == LIGHT ? lR : dR), 0, 0, 0, 0));
+                    (b->state.side == LIGHT ? lB : dB), MVF_Quiet));
                 movelist_add(ml, move_encode(source, target, piece,
-                                             (b->state.side == LIGHT ? lB : dB), 0, 0, 0, 0));
-                movelist_add(ml, move_encode(source, target, piece,
-                                             (b->state.side == LIGHT ? lN : dN), 0, 0, 0, 0));
+                    (b->state.side == LIGHT ? lN : dN), MVF_Quiet));
             } else {
-                movelist_add(ml, move_encode(source, target, piece, E, 0, 0, 0, 0));
+                movelist_add(ml, move_encode(source, target, piece, E, MVF_Quiet));
                 if ((source >= doublePushStart && source <= doublePushStart + 7) &&
                     !get_bit(b->pos.units[BOTH], target + direction))
-                    movelist_add(ml, move_encode(source, target + direction, piece, E, 0, 1, 0, 0));
+                    movelist_add(ml, move_encode(source, target + direction, piece, E, MVF_TwoSquarePush));
             }
         }
         // Capture moves
@@ -85,15 +92,15 @@ static void movelist_gen_pawn(MoveList *ml, const Board *const b) {
             // Capture move
             if ((source >= promotionStart) && (source <= promotionStart + 7)) {
                 movelist_add(ml, move_encode(source, target, piece,
-                                             (b->state.side == LIGHT ? lQ : dQ), 1, 0, 0, 0));
+                                             (b->state.side == LIGHT ? lQ : dQ), MVF_Capture));
                 movelist_add(ml, move_encode(source, target, piece,
-                                             (b->state.side == LIGHT ? lR : dR), 1, 0, 0, 0));
+                                             (b->state.side == LIGHT ? lR : dR), MVF_Capture));
                 movelist_add(ml, move_encode(source, target, piece,
-                                             (b->state.side == LIGHT ? lB : dB), 1, 0, 0, 0));
+                                             (b->state.side == LIGHT ? lB : dB), MVF_Capture));
                 movelist_add(ml, move_encode(source, target, piece,
-                                             (b->state.side == LIGHT ? lN : dN), 1, 0, 0, 0));
+                                             (b->state.side == LIGHT ? lN : dN), MVF_Capture));
             } else
-                movelist_add(ml, move_encode(source, target, piece, E, 1, 0, 0, 0));
+                movelist_add(ml, move_encode(source, target, piece, E, MVF_Capture));
             // Remove 'source' bit
             pop_bit(attack_copy, target);
         }
@@ -103,7 +110,7 @@ static void movelist_gen_pawn(MoveList *ml, const Board *const b) {
                 pawn_attacks[b->state.side][source] & (1ULL << b->state.enpassant);
             if (enpassCapture) {
                 int enpassTarget = bb_lsb_index(enpassCapture);
-                movelist_add(ml, move_encode(source, enpassTarget, piece, E, 1, 0, 1, 0));
+                movelist_add(ml, move_encode(source, enpassTarget, piece, E, MVF_Enpassant));
             }
         }
         // Remove bits
@@ -122,9 +129,9 @@ static void movelist_gen_knight(MoveList *ml, const Board *const b) {
         while (attack_copy) {
             target = bb_lsb_index(attack_copy);
             if (get_bit(b->pos.units[b->state.side == LIGHT ? DARK : LIGHT], target))
-                movelist_add(ml, move_encode(source, target, piece, E, 1, 0, 0, 0));
+                movelist_add(ml, move_encode(source, target, piece, E, MVF_Capture));
             else
-                movelist_add(ml, move_encode(source, target, piece, E, 0, 0, 0, 0));
+                movelist_add(ml, move_encode(source, target, piece, E, MVF_Quiet));
             pop_bit(attack_copy, target);
         }
         pop_bit(bitboard_copy, source);
@@ -143,9 +150,9 @@ static void movelist_gen_bishop(MoveList *ml, const Board *const b) {
         while (attack_copy) {
             target = bb_lsb_index(attack_copy);
             if (get_bit(b->pos.units[b->state.side == LIGHT ? DARK : LIGHT], target))
-                movelist_add(ml, move_encode(source, target, piece, E, 1, 0, 0, 0));
+                movelist_add(ml, move_encode(source, target, piece, E, MVF_Capture));
             else
-                movelist_add(ml, move_encode(source, target, piece, E, 0, 0, 0, 0));
+                movelist_add(ml, move_encode(source, target, piece, E, MVF_Quiet));
             pop_bit(attack_copy, target);
         }
         pop_bit(bitboard_copy, source);
@@ -163,9 +170,9 @@ static void movelist_gen_rook(MoveList *ml, const Board *const b) {
         while (attack_copy) {
             target = bb_lsb_index(attack_copy);
             if (get_bit(b->pos.units[b->state.side == LIGHT ? DARK : LIGHT], target))
-                movelist_add(ml, move_encode(source, target, piece, E, 1, 0, 0, 0));
+                movelist_add(ml, move_encode(source, target, piece, E, MVF_Capture));
             else
-                movelist_add(ml, move_encode(source, target, piece, E, 0, 0, 0, 0));
+                movelist_add(ml, move_encode(source, target, piece, E, MVF_Quiet));
             pop_bit(attack_copy, target);
         }
         pop_bit(bitboard_copy, source);
@@ -183,9 +190,9 @@ static void movelist_gen_queen(MoveList *ml, const Board *const b) {
         while (attack_copy) {
             target = bb_lsb_index(attack_copy);
             if (get_bit(b->pos.units[b->state.side == LIGHT ? DARK : LIGHT], target))
-                movelist_add(ml, move_encode(source, target, piece, E, 1, 0, 0, 0));
+                movelist_add(ml, move_encode(source, target, piece, E, MVF_Capture));
             else
-                movelist_add(ml, move_encode(source, target, piece, E, 0, 0, 0, 0));
+                movelist_add(ml, move_encode(source, target, piece, E, MVF_Quiet));
             pop_bit(attack_copy, target);
         }
         pop_bit(bitboard_copy, source);
@@ -199,7 +206,7 @@ static void movelist_gen_white_castling(MoveList *ml, const Board *const b) {
         if (!get_bit(b->pos.units[BOTH], f1) && !get_bit(b->pos.units[BOTH], g1)) {
             // Is e1 or f1 attacked by a black piece?
             if (!board_is_sq_attacked(b, e1, DARK) && !board_is_sq_attacked(b, f1, DARK))
-                movelist_add(ml, move_encode(e1, g1, lK, E, 0, 0, 0, 1));
+                movelist_add(ml, move_encode(e1, g1, lK, E, MVF_Castling));
         }
     }
     // Queenside castling
@@ -209,7 +216,7 @@ static void movelist_gen_white_castling(MoveList *ml, const Board *const b) {
             !get_bit(b->pos.units[BOTH], d1)) {
             // Is d1 or e1 attacked by a black piece?
             if (!board_is_sq_attacked(b, d1, DARK) && !board_is_sq_attacked(b, e1, DARK))
-                movelist_add(ml, move_encode(e1, c1, lK, E, 0, 0, 0, 1));
+                movelist_add(ml, move_encode(e1, c1, lK, E, MVF_Castling));
         }
     }
 }
@@ -221,7 +228,7 @@ static void movelist_gen_black_castling(MoveList *ml, const Board *const b) {
         if (!get_bit(b->pos.units[BOTH], f8) && !get_bit(b->pos.units[BOTH], g8)) {
             // Is e8 or f8 attacked by a white piece?
             if (!board_is_sq_attacked(b, e8, LIGHT) && !board_is_sq_attacked(b, f8, LIGHT))
-                movelist_add(ml, move_encode(e8, g8, dK, E, 0, 0, 0, 1));
+                movelist_add(ml, move_encode(e8, g8, dK, E, MVF_Castling));
         }
     }
     // Queenside castling
@@ -231,7 +238,7 @@ static void movelist_gen_black_castling(MoveList *ml, const Board *const b) {
             !get_bit(b->pos.units[BOTH], d8)) {
             // Is d8 or e8 attacked by a white piece?
             if (!board_is_sq_attacked(b, d8, LIGHT) && !board_is_sq_attacked(b, e8, LIGHT))
-                movelist_add(ml, move_encode(e8, c8, dK, E, 0, 0, 0, 1));
+                movelist_add(ml, move_encode(e8, c8, dK, E, MVF_Castling));
         }
     }
 }
@@ -249,9 +256,9 @@ static void movelist_gen_king(MoveList *ml, const Board *const b) {
             target = bb_lsb_index(attack);
 
             if (get_bit((b->pos.units[b->state.side == LIGHT ? DARK : LIGHT]), target))
-                movelist_add(ml, move_encode(source, target, piece, E, 1, 0, 0, 0));
+                movelist_add(ml, move_encode(source, target, piece, E, MVF_Capture));
             else
-                movelist_add(ml, move_encode(source, target, piece, E, 0, 0, 0, 0));
+                movelist_add(ml, move_encode(source, target, piece, E, MVF_Quiet));
 
             // Remove target bit to move onto the next bit
             pop_bit(attack, target);

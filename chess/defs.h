@@ -1,3 +1,6 @@
+#ifndef _DEFS_H_
+#define _DEFS_H_
+
 // Common standard header files
 #include <assert.h>
 #include <stdbool.h>
@@ -60,3 +63,5 @@ typedef enum {
     SW_S = (-8 - 1) - 8, // -17
     SW_W = (-8 - 1) - 1, // -10
 } Direction;
+
+#endif // _DEFS_H_

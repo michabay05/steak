@@ -1,3 +1,5 @@
+#include "bitboard.h"
+
 void bb_print(const uint64_t bitboard) {
     printf("\n");
     for (int r = 0; r < 8; r++) {

@@ -1,3 +1,8 @@
+#ifndef _FEN_H_
+#define _FEN_H_
+
+#include "defs.h"
+
 typedef struct
 {
     Piece board[64];
@@ -10,3 +15,5 @@ typedef struct
 
 FENInfo parse_fen(const char *fen);
 void fen_info_print(FENInfo *fen);
+
+#endif // _FEN_H_

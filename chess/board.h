@@ -1,3 +1,8 @@
+#ifndef _BOARD_H_
+#define _BOARD_H_
+
+#include "fen.h"
+
 typedef struct {
     uint64_t piece[12];
     uint64_t units[3];
@@ -27,3 +32,5 @@ void board_set_from_fen(Board *board, FENInfo fen);
 void board_print(const Board *const b);
 bool board_is_sq_attacked(const Board *const b, Sq sq, PieceColor side);
 bool board_is_in_check(const Board *const b);
+
+#endif //  _BOARD_H_
