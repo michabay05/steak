@@ -1,14 +1,18 @@
+#include "../nob.h"
+
 #include "move_gen.h"
 #include "bitboard.h"
+#include "defs.h"
 #include "move.h"
 #include "precalculate.h"
+#include <stdint.h>
 
 void movelist_add(MoveList *ml, Move move) {
     assert(ml->count < MOVE_GEN_MAX);
     ml->list[ml->count++] = move;
 }
 
-Move movelist_search(const MoveList ml, Sq source, Sq target, Piece promoted) {
+Move movelist_search(MoveList ml, Sq source, Sq target, Piece promoted) {
     for (int i = 0; i < ml.count; i++) {
         // Parse move info
         Sq listMoveSource = ml.list[i].source;
@@ -22,7 +26,7 @@ Move movelist_search(const MoveList ml, Sq source, Sq target, Piece promoted) {
     return (Move){0};
 }
 
-void movelist_print_list(const MoveList ml) {
+void movelist_print_list(MoveList ml) {
     printf("    Source   |   Target  |  Piece  |  Promoted  |  Capture  |  Two "
            "Square Push  |  Enpassant  |  Castling\n");
     printf("  "
@@ -41,7 +45,7 @@ void movelist_print_list(const MoveList ml) {
     printf("\n    Total number of moves: %d\n", ml.count);
 }
 
-static void movelist_gen_pawn(MoveList *ml, const Board *const b) {
+static void movelist_gen_pawn(MoveList *ml, Board *b) {
     uint64_t bitboard_copy, attack_copy;
     int promotionStart, direction, doublePushStart, piece;
     int source, target;
@@ -118,14 +122,36 @@ static void movelist_gen_pawn(MoveList *ml, const Board *const b) {
     }
 }
 
-static void movelist_gen_knight(MoveList *ml, const Board *const b) {
-    int source, target, piece = b->state.side == LIGHT ? lN : dN;
+static void movelist_gen_qrnbk(MoveList *ml, Board *b, PieceType pt) {
+    Piece piece;
+    switch (pt) {
+        case KNIGHT: piece = b->state.side == LIGHT ? lN : dN; break;
+        case BISHOP: piece = b->state.side == LIGHT ? lB : dB; break;
+        case ROOK  : piece = b->state.side == LIGHT ? lR : dR; break;
+        case QUEEN : piece = b->state.side == LIGHT ? lQ : dQ; break;
+        case KING  : piece = b->state.side == LIGHT ? lK : dK; break;
+
+        case PAWN:
+        default: UNREACHABLE("Pawn or unknown piece type");
+    }
+
+    Sq source, target;
     uint64_t bitboard_copy = b->pos.piece[piece], attack_copy;
     while (bitboard_copy) {
         source = bb_lsb_index(bitboard_copy);
 
-        attack_copy = knight_attacks[source] &
-                      (b->state.side == LIGHT ? ~b->pos.units[LIGHT] : ~b->pos.units[DARK]);
+        switch (pt) {
+            case KNIGHT: attack_copy = knight_attacks[source]; break;
+            case BISHOP: attack_copy = get_bishop_attack(source, b->pos.units[BOTH]); break;
+            case ROOK  : attack_copy = get_rook_attack(source, b->pos.units[BOTH]); break;
+            case QUEEN : attack_copy = get_queen_attack(source, b->pos.units[BOTH]); break;
+            case KING  : attack_copy = king_attacks[source]; break;
+
+            case PAWN:
+            default: UNREACHABLE("Pawn or unknown piece type");
+        }
+
+        attack_copy &= (b->state.side == LIGHT ? ~b->pos.units[LIGHT] : ~b->pos.units[DARK]);
         while (attack_copy) {
             target = bb_lsb_index(attack_copy);
             if (get_bit(b->pos.units[b->state.side == LIGHT ? DARK : LIGHT], target))
@@ -138,68 +164,7 @@ static void movelist_gen_knight(MoveList *ml, const Board *const b) {
     }
 }
 
-static void movelist_gen_bishop(MoveList *ml, const Board *const b) {
-    int source, target, piece = b->state.side == LIGHT ? lB : dB;
-    uint64_t bitboard_copy = b->pos.piece[piece], attack_copy;
-    while (bitboard_copy) {
-        source = bb_lsb_index(bitboard_copy);
-
-        attack_copy = get_bishop_attack(source, b->pos.units[BOTH]) &
-                      (b->state.side == LIGHT ? ~b->pos.units[LIGHT] : ~b->pos.units[DARK]);
-
-        while (attack_copy) {
-            target = bb_lsb_index(attack_copy);
-            if (get_bit(b->pos.units[b->state.side == LIGHT ? DARK : LIGHT], target))
-                movelist_add(ml, move_encode(source, target, piece, E, MVF_Capture));
-            else
-                movelist_add(ml, move_encode(source, target, piece, E, MVF_Quiet));
-            pop_bit(attack_copy, target);
-        }
-        pop_bit(bitboard_copy, source);
-    }
-}
-
-static void movelist_gen_rook(MoveList *ml, const Board *const b) {
-    int source, target, piece = b->state.side == LIGHT ? lR : dR;
-    uint64_t bitboard_copy = b->pos.piece[piece], attack_copy;
-    while (bitboard_copy) {
-        source = bb_lsb_index(bitboard_copy);
-
-        attack_copy = get_rook_attack(source, b->pos.units[BOTH]) &
-                      (b->state.side == LIGHT ? ~b->pos.units[LIGHT] : ~b->pos.units[DARK]);
-        while (attack_copy) {
-            target = bb_lsb_index(attack_copy);
-            if (get_bit(b->pos.units[b->state.side == LIGHT ? DARK : LIGHT], target))
-                movelist_add(ml, move_encode(source, target, piece, E, MVF_Capture));
-            else
-                movelist_add(ml, move_encode(source, target, piece, E, MVF_Quiet));
-            pop_bit(attack_copy, target);
-        }
-        pop_bit(bitboard_copy, source);
-    }
-}
-
-static void movelist_gen_queen(MoveList *ml, const Board *const b) {
-    int source, target, piece = b->state.side == LIGHT ? lQ : dQ;
-    uint64_t bitboard_copy = b->pos.piece[piece], attack_copy;
-    while (bitboard_copy) {
-        source = bb_lsb_index(bitboard_copy);
-
-        attack_copy = get_queen_attack(source, b->pos.units[BOTH]) &
-                      (b->state.side == LIGHT ? ~b->pos.units[LIGHT] : ~b->pos.units[DARK]);
-        while (attack_copy) {
-            target = bb_lsb_index(attack_copy);
-            if (get_bit(b->pos.units[b->state.side == LIGHT ? DARK : LIGHT], target))
-                movelist_add(ml, move_encode(source, target, piece, E, MVF_Capture));
-            else
-                movelist_add(ml, move_encode(source, target, piece, E, MVF_Quiet));
-            pop_bit(attack_copy, target);
-        }
-        pop_bit(bitboard_copy, source);
-    }
-}
-
-static void movelist_gen_white_castling(MoveList *ml, const Board *const b) {
+static void movelist_gen_white_castling(MoveList *ml, Board *b) {
     // Kingside castling
     if (get_bit(b->state.castling, cr_lK)) {
         // Check if path is obstructed
@@ -221,7 +186,7 @@ static void movelist_gen_white_castling(MoveList *ml, const Board *const b) {
     }
 }
 
-static void movelist_gen_black_castling(MoveList *ml, const Board *const b) {
+static void movelist_gen_black_castling(MoveList *ml, Board *b) {
     // Kingside castling
     if (get_bit(b->state.castling, cr_dK)) {
         // Check if path is obstructed
@@ -243,29 +208,10 @@ static void movelist_gen_black_castling(MoveList *ml, const Board *const b) {
     }
 }
 
-static void movelist_gen_king(MoveList *ml, const Board *const b) {
+static void movelist_gen_king(MoveList *ml, Board *b) {
     // NOTE: Checks aren't handled by the move generator, it's handled by the make move function.
-    int source, target, piece = b->state.side == LIGHT ? lK : dK;
-    uint64_t bitboard = b->pos.piece[piece], attack;
-    while (bitboard != 0) {
-        source = bb_lsb_index(bitboard);
 
-        attack = king_attacks[source] &
-                 (b->state.side == LIGHT ? ~b->pos.units[LIGHT] : ~b->pos.units[DARK]);
-        while (attack != 0) {
-            target = bb_lsb_index(attack);
-
-            if (get_bit((b->pos.units[b->state.side == LIGHT ? DARK : LIGHT]), target))
-                movelist_add(ml, move_encode(source, target, piece, E, MVF_Capture));
-            else
-                movelist_add(ml, move_encode(source, target, piece, E, MVF_Quiet));
-
-            // Remove target bit to move onto the next bit
-            pop_bit(attack, target);
-        }
-        // Remove source bit to move onto the next bit
-        pop_bit(bitboard, source);
-    }
+    movelist_gen_qrnbk(ml, b, KING);
     // Generate castling moves
     if (b->state.side == LIGHT)
         movelist_gen_white_castling(ml, b);
@@ -273,35 +219,23 @@ static void movelist_gen_king(MoveList *ml, const Board *const b) {
         movelist_gen_black_castling(ml, b);
 }
 
-void movelist_generate(MoveList *ml, const Board *const b, Piece p) {
+void movelist_generate(MoveList *ml, Board *b, Piece p) {
     switch (COLORLESS(p)) {
-    case PAWN:
-        movelist_gen_pawn(ml, b);
-        break;
-    case KNIGHT:
-        movelist_gen_knight(ml, b);
-        break;
-    case BISHOP:
-        movelist_gen_bishop(ml, b);
-        break;
-    case ROOK:
-        movelist_gen_rook(ml, b);
-        break;
-    case QUEEN:
-        movelist_gen_queen(ml, b);
-        break;
-    case KING:
-        movelist_gen_king(ml, b);
-        break;
+        case PAWN: movelist_gen_pawn(ml, b); break;
+        case KNIGHT: movelist_gen_qrnbk(ml, b, KNIGHT); break;
+        case BISHOP: movelist_gen_qrnbk(ml, b, BISHOP); break;
+        case ROOK  : movelist_gen_qrnbk(ml, b, ROOK); break;
+        case QUEEN: movelist_gen_qrnbk(ml, b, QUEEN); break;
+        case KING: movelist_gen_king(ml, b); break;
     }
 }
 
-void movelist_generate_all(MoveList *ml, const Board *const b) {
+void movelist_generate_all(MoveList *ml, Board *b) {
     movelist_gen_pawn(ml, b);
-    movelist_gen_knight(ml, b);
-    movelist_gen_bishop(ml, b);
-    movelist_gen_rook(ml, b);
-    movelist_gen_queen(ml, b);
+    movelist_gen_qrnbk(ml, b, KNIGHT);
+    movelist_gen_qrnbk(ml, b, BISHOP);
+    movelist_gen_qrnbk(ml, b, ROOK);
+    movelist_gen_qrnbk(ml, b, QUEEN);
     movelist_gen_king(ml, b);
 }
 

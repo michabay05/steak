@@ -261,6 +261,10 @@ bool pgn_read(char *filepath, PGN *pgn) {
     return true;
 }
 
+bool pgn_is_valid(PGN *pgn) {
+    TODO("pgn_is_valid()");
+}
+
 void pgn_deinit(PGN *pgn) {
     sb_free(pgn->sb);
 }

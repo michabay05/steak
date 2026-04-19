@@ -1,5 +1,8 @@
+#include <stdio.h>
 #include <sys/time.h>
 
+#define NOB_IMPLEMENTATION
+#include "../nob.h"
 #include "precalculate.h"
 #include "move_gen.h"
 
@@ -96,13 +99,21 @@ void perft_test(Board *board, int depth) {
     printf("     Time: %ld\n\n", get_time_ms() - start);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    char *program = nob_shift_args(&argc, &argv);
+    if (argc != 2) {
+        fprintf(stderr, "[ERROR] Expected 2 cmdline args\n");
+        fprintf(stderr, "[NOTE] Usage: %s <FEN> <depth>\n", program);
+        fprintf(stderr, "[WARN] Make sure that the fen string is single or double quoted\n");
+        return 1;
+    }
+
     attack_init();
 
     Board board;
-    FENInfo fen_info = parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    FENInfo fen_info = parse_fen(argv[0]);
     board_set_from_fen(&board, fen_info);
     board_print(&board);
 
-    perft_test(&board, 5);
+    perft_test(&board, atoi(argv[1]));
 }
