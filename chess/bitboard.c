@@ -5,7 +5,7 @@ void bb_print(const uint64_t bitboard) {
     for (int r = 0; r < 8; r++) {
         printf(" %d |", 8 - r);
         for (int f = 0; f < 8; f++)
-            printf(" %c", get_bit(bitboard, r * 8 + f) ? '1' : '.');
+            printf(" %c", get_bit(bitboard, (7 - r) * 8 + f) ? '1' : '.');
 
         printf("\n");
     }

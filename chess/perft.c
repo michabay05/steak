@@ -1,3 +1,4 @@
+#include "bitboard.h"
 #include <stdio.h>
 #include <sys/time.h>
 
@@ -5,12 +6,6 @@
 #include "../nob.h"
 #include "precalculate.h"
 #include "move_gen.h"
-
-static int get_time_ms(void) {
-    struct timeval time_value;
-    gettimeofday(&time_value, NULL);
-    return time_value.tv_sec * 1000 + time_value.tv_usec / 1000;
-}
 
 // leaf nodes (number of positions reached during the test of the move generator at a given depth)
 uint64_t nodes;
@@ -60,7 +55,7 @@ void perft_test(Board *board, int depth) {
     movelist_generate_all(&ml, board);
 
     // init start time
-    long start = get_time_ms();
+    uint64_t start = nanos_since_unspecified_epoch();
 
     Board clone;
     // loop over generated moves
@@ -96,10 +91,13 @@ void perft_test(Board *board, int depth) {
     // print results
     printf("\n    Depth: %d\n", depth);
     printf("    Nodes: %ld\n", nodes);
-    printf("     Time: %ld\n\n", get_time_ms() - start);
+    printf("     Time: %ld ms\n\n",
+        (uint64_t)((nanos_since_unspecified_epoch() - start) * 1e-6));
 }
 
 int main(int argc, char **argv) {
+    #define TESTING(s) s * 2 + s
+
     char *program = nob_shift_args(&argc, &argv);
     if (argc != 2) {
         fprintf(stderr, "[ERROR] Expected 2 cmdline args\n");

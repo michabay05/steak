@@ -1,9 +1,11 @@
 #include "fen.h"
+#include <stdbool.h>
+#include <stdint.h>
 
 FENInfo parse_fen(const char *fen) {
     FENInfo info = {0};
     // Piece placements
-    int ind = 0;
+    uint8_t rank = 7, file = 0;
 
     // Set every square to be empty before setting values
     for (int i = 0; i < 64; i++)
@@ -11,53 +13,55 @@ FENInfo parse_fen(const char *fen) {
 
     while (fen && *fen != ' ') {
         if (*fen == '/') {
+            rank--;
+            file = 0;
             fen++;
             continue;
         } else if (*fen >= '0' && *fen <= '9') {
-            ind += *fen - '0';
+            file += *fen - '0';
             fen++;
             continue;
         }
 
         switch (*fen) {
         case 'K':
-            info.board[ind] = lK;
+            info.board[SQ(rank, file)] = lK;
             break;
         case 'Q':
-            info.board[ind] = lQ;
+            info.board[SQ(rank, file)] = lQ;
             break;
         case 'R':
-            info.board[ind] = lR;
+            info.board[SQ(rank, file)] = lR;
             break;
         case 'B':
-            info.board[ind] = lB;
+            info.board[SQ(rank, file)] = lB;
             break;
         case 'N':
-            info.board[ind] = lN;
+            info.board[SQ(rank, file)] = lN;
             break;
         case 'P':
-            info.board[ind] = lP;
+            info.board[SQ(rank, file)] = lP;
             break;
         case 'k':
-            info.board[ind] = dK;
+            info.board[SQ(rank, file)] = dK;
             break;
         case 'q':
-            info.board[ind] = dQ;
+            info.board[SQ(rank, file)] = dQ;
             break;
         case 'r':
-            info.board[ind] = dR;
+            info.board[SQ(rank, file)] = dR;
             break;
         case 'b':
-            info.board[ind] = dB;
+            info.board[SQ(rank, file)] = dB;
             break;
         case 'n':
-            info.board[ind] = dN;
+            info.board[SQ(rank, file)] = dN;
             break;
         case 'p':
-            info.board[ind] = dP;
+            info.board[SQ(rank, file)] = dP;
             break;
         }
-        ind++;
+        file++;
         fen++;
     }
     // Push pointer one more to account for space

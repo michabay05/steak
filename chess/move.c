@@ -160,10 +160,10 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
     // Unlike other captures, make sure to remove the "enpassant'd" pawn from the enemy bitboard
     if (move.flag == MVF_Enpassant) {
         Piece pawn = dP;
-        Direction dir = NORTH;
-        if (main->state.side) {
+        Direction dir = SOUTH;
+        if (main->state.side == DARK) {
             pawn = lP;
-            dir = SOUTH;
+            dir = NORTH;
         }
         pop_bit(main->pos.piece[pawn], move.target + dir);
     }
@@ -171,10 +171,8 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
     // because enpassant can only be played on the move after the two square pawn push
     main->state.enpassant = noSq;
     if (move.flag == MVF_TwoSquarePush) {
-        if (!main->state.side)
-            main->state.enpassant = move.target + NORTH;
-        else
-            main->state.enpassant = move.target + SOUTH;
+        main->state.enpassant = move.target
+            + ((main->state.side == LIGHT) ? SOUTH : NORTH);
     }
 
     // If move is castling, place the rook on the correct square
