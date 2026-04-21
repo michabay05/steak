@@ -14,14 +14,11 @@ extern uint64_t bishop_attacks[64][512];
 extern uint64_t rook_occ_mask[64];
 extern uint64_t rook_attacks[64][4096];
 
-extern const uint64_t bishop_magics[64];
-extern const uint64_t rook_magics[64];
-
 void attack_init(void);
 void attack_init_leapers(void);
 void attack_init_sliding(PieceType pt);
 
-void gen_pawn_attacks(PieceColor color, Sq sq);
+void gen_pawn_attacks(Color color, Sq sq);
 void gen_knight_attacks(Sq sq);
 void gen_king_attacks(Sq sq);
 

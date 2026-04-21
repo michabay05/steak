@@ -1,6 +1,5 @@
-#include "bitboard.h"
+#include "defs.h"
 #include <stdio.h>
-#include <sys/time.h>
 
 #define NOB_IMPLEMENTATION
 #include "../nob.h"
@@ -96,8 +95,6 @@ void perft_test(Board *board, int depth) {
 }
 
 int main(int argc, char **argv) {
-    #define TESTING(s) s * 2 + s
-
     char *program = nob_shift_args(&argc, &argv);
     if (argc != 2) {
         fprintf(stderr, "[ERROR] Expected 2 cmdline args\n");

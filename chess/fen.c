@@ -9,7 +9,7 @@ FENInfo parse_fen(const char *fen) {
 
     // Set every square to be empty before setting values
     for (int i = 0; i < 64; i++)
-        info.board[i] = E;
+        info.board[i] = P_NONE;
 
     while (fen && *fen != ' ') {
         if (*fen == '/') {
@@ -25,40 +25,40 @@ FENInfo parse_fen(const char *fen) {
 
         switch (*fen) {
         case 'K':
-            info.board[SQ(rank, file)] = lK;
+            info.board[SQ(rank, file)] = P_LK;
             break;
         case 'Q':
-            info.board[SQ(rank, file)] = lQ;
+            info.board[SQ(rank, file)] = P_LQ;
             break;
         case 'R':
-            info.board[SQ(rank, file)] = lR;
+            info.board[SQ(rank, file)] = P_LR;
             break;
         case 'B':
-            info.board[SQ(rank, file)] = lB;
+            info.board[SQ(rank, file)] = P_LB;
             break;
         case 'N':
-            info.board[SQ(rank, file)] = lN;
+            info.board[SQ(rank, file)] = P_LN;
             break;
         case 'P':
-            info.board[SQ(rank, file)] = lP;
+            info.board[SQ(rank, file)] = P_LP;
             break;
         case 'k':
-            info.board[SQ(rank, file)] = dK;
+            info.board[SQ(rank, file)] = P_DK;
             break;
         case 'q':
-            info.board[SQ(rank, file)] = dQ;
+            info.board[SQ(rank, file)] = P_DQ;
             break;
         case 'r':
-            info.board[SQ(rank, file)] = dR;
+            info.board[SQ(rank, file)] = P_DR;
             break;
         case 'b':
-            info.board[SQ(rank, file)] = dB;
+            info.board[SQ(rank, file)] = P_DB;
             break;
         case 'n':
-            info.board[SQ(rank, file)] = dN;
+            info.board[SQ(rank, file)] = P_DN;
             break;
         case 'p':
-            info.board[SQ(rank, file)] = dP;
+            info.board[SQ(rank, file)] = P_DP;
             break;
         }
         file++;

@@ -16,40 +16,22 @@ Move move_encode(Sq source, Sq target, Piece piece, Piece promoted,
 // Piece move_get_piece(const Move move) { return (move & 0xF000) >> 12; }
 Piece move_get_promoted(Move move) {
     // int promoted = (move & 0xF0000) >> 16;
-    return move.promoted ? move.promoted : E;
+    return move.promoted ? move.promoted : P_NONE;
 }
 
 char move_promoted_char(const Move move) {
     char promoted;
     Piece promoted_piece = move_get_promoted(move);
     switch (promoted_piece) {
-    case lQ:
-        promoted = 'Q';
-        break;
-    case lR:
-        promoted = 'R';
-        break;
-    case lB:
-        promoted = 'B';
-        break;
-    case lN:
-        promoted = 'N';
-        break;
-    case dQ:
-        promoted = 'q';
-        break;
-    case dR:
-        promoted = 'r';
-        break;
-    case dB:
-        promoted = 'b';
-        break;
-    case dN:
-        promoted = 'n';
-        break;
-    default:
-        promoted = ' ';
-        break;
+        case P_LQ: promoted = 'Q'; break;
+        case P_LR: promoted = 'R'; break;
+        case P_LB: promoted = 'B'; break;
+        case P_LN: promoted = 'N'; break;
+        case P_DQ: promoted = 'q'; break;
+        case P_DR: promoted = 'r'; break;
+        case P_DB: promoted = 'b'; break;
+        case P_DN: promoted = 'n'; break;
+        default: promoted = ' '; break;
     }
     return promoted;
 }
@@ -73,32 +55,32 @@ void move_to_str(Move move, char *move_str) {
 Move move_parse(char *move_str, Piece piece, MoveFlags flag) {
     int source = SQ(move_str[1] - '0', move_str[0] - 'a');
     int target = SQ(move_str[3] - '0', move_str[2] - 'a');
-    Piece promoted = E;
+    Piece promoted = P_NONE;
     if (move_str && (move_str[4] >= 'a' && move_str[4] <= 'z')) {
         switch (move_str[4]) {
         case 'Q':
-            promoted = lQ;
+            promoted = P_LQ;
             break;
         case 'R':
-            promoted = lR;
+            promoted = P_LR;
             break;
         case 'B':
-            promoted = lB;
+            promoted = P_LB;
             break;
         case 'N':
-            promoted = lN;
+            promoted = P_LN;
             break;
         case 'q':
-            promoted = dQ;
+            promoted = P_DQ;
             break;
         case 'r':
-            promoted = dR;
+            promoted = P_DR;
             break;
         case 'b':
-            promoted = dB;
+            promoted = P_DB;
             break;
         case 'n':
-            promoted = dN;
+            promoted = P_DN;
             break;
         }
     }
@@ -141,7 +123,8 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
 
     // If move is capture, remove the piece from the opponent's bitboard
     if (is_capture) {
-        for (Piece p = (!main->state.side ? dP : lP); p <= (!main->state.side ? dK : lK); p++) {
+        for (Piece p = (main->state.side == C_WHITE ? P_DP : P_LP);
+                p <= (main->state.side == C_WHITE ? P_DK : P_LK); p++) {
             if (get_bit(main->pos.piece[p], move.target)) {
                 pop_bit(main->pos.piece[p], move.target);
                 // There's no need to keep looking for another piece because
@@ -152,27 +135,27 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
     }
 
     // If move is promotion, change the pawn to the desired piece
-    if (promoted != E) {
+    if (promoted != P_NONE) {
         pop_bit(main->pos.piece[move.piece], move.target);
         set_bit(main->pos.piece[promoted], move.target);
     }
 
     // Unlike other captures, make sure to remove the "enpassant'd" pawn from the enemy bitboard
     if (move.flag == MVF_Enpassant) {
-        Piece pawn = dP;
-        Direction dir = SOUTH;
-        if (main->state.side == DARK) {
-            pawn = lP;
-            dir = NORTH;
+        Piece pawn = P_DP;
+        Direction dir = DIR_SOUTH;
+        if (main->state.side == C_BLACK) {
+            pawn = P_LP;
+            dir = DIR_NORTH;
         }
         pop_bit(main->pos.piece[pawn], move.target + dir);
     }
     // Reset enpassant square, even if the current move was enpassant or not
     // because enpassant can only be played on the move after the two square pawn push
-    main->state.enpassant = noSq;
+    main->state.enpassant = SQ_NONE;
     if (move.flag == MVF_TwoSquarePush) {
         main->state.enpassant = move.target
-            + ((main->state.side == LIGHT) ? SOUTH : NORTH);
+            + ((main->state.side == C_WHITE) ? DIR_SOUTH : DIR_NORTH);
     }
 
     // If move is castling, place the rook on the correct square
@@ -180,21 +163,21 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
     if (move.flag == MVF_Castling) {
         // Target = king's target square
         switch (move.target) {
-        case g1:
-            pop_bit(main->pos.piece[lR], h1);
-            set_bit(main->pos.piece[lR], f1);
+        case SQ_G1:
+            pop_bit(main->pos.piece[P_LR], SQ_H1);
+            set_bit(main->pos.piece[P_LR], SQ_F1);
             break;
-        case c1:
-            pop_bit(main->pos.piece[lR], a1);
-            set_bit(main->pos.piece[lR], d1);
+        case SQ_C1:
+            pop_bit(main->pos.piece[P_LR], SQ_A1);
+            set_bit(main->pos.piece[P_LR], SQ_D1);
             break;
-        case g8:
-            pop_bit(main->pos.piece[dR], h8);
-            set_bit(main->pos.piece[dR], f8);
+        case SQ_G8:
+            pop_bit(main->pos.piece[P_DR], SQ_H8);
+            set_bit(main->pos.piece[P_DR], SQ_F8);
             break;
-        case c8:
-            pop_bit(main->pos.piece[dR], a8);
-            set_bit(main->pos.piece[dR], d8);
+        case SQ_C8:
+            pop_bit(main->pos.piece[P_DR], SQ_A8);
+            set_bit(main->pos.piece[P_DR], SQ_D8);
             break;
         default:
             break;

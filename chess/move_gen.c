@@ -46,50 +46,51 @@ void movelist_print_list(MoveList ml) {
 }
 
 static void movelist_gen_pawn(MoveList *ml, Board *b) {
-    #define in_enemy_back_rank(p, sq) (p == lP ? (a8 <= sq && sq <= h8) : (a1 <= sq && sq <= h1))
+    #define in_enemy_back_rank(p, sq) (p == P_LP ? (SQ_A8 <= sq && sq <= SQ_H8) : (SQ_A1 <= sq && sq <= SQ_H1))
 
-    #define in_starting_rank(p, sq) (p == lP ? (a2 <= sq && sq <= h2) : (a7 <= sq && sq <= h7))
+    #define in_starting_rank(p, sq) (p == P_LP ? (SQ_A2 <= sq && sq <= SQ_H2) : (SQ_A7 <= sq && sq <= SQ_H7))
 
-    #define in_promotion_rank(p, sq) (p == lP ? (a7 <= sq && sq <= h7) : (a2 <= sq && sq <= h2))
+    #define in_promotion_rank(p, sq) (p == P_LP ? (SQ_A7 <= sq && sq <= SQ_H7) : (SQ_A2 <= sq && sq <= SQ_H2))
 
 
     uint64_t bitboard_copy, attack_copy;
     Piece pawn;
     Direction direction;
     Sq source, target;
-    if (b->state.side == LIGHT) {
-        pawn = lP;
-        direction = NORTH;
+    if (b->state.side == C_WHITE) {
+        pawn = P_LP;
+        direction = DIR_NORTH;
     }
     else {
-        pawn = dP;
-        direction = SOUTH;
+        pawn = P_DP;
+        direction = DIR_SOUTH;
     }
 
     bitboard_copy = b->pos.piece[pawn];
     while (bitboard_copy) {
         source = bb_lsb_index(bitboard_copy);
         target = source + direction;
-        if (!get_bit(b->pos.units[BOTH], target)) {
+        if (!get_bit(b->pos.all_units, target)) {
             if (in_promotion_rank(pawn, source)
                 && in_enemy_back_rank(pawn, target)) {
                 // Quiet Promotion moves
                 movelist_add(ml, move_encode(source, target, pawn,
-                    (b->state.side == LIGHT ? lQ : dQ), MVF_Quiet));
+                    (b->state.side == C_WHITE ? P_LQ : P_DQ), MVF_Quiet));
                 movelist_add(ml, move_encode(source, target, pawn,
-                    (b->state.side == LIGHT ? lR : dR), MVF_Quiet));
+                    (b->state.side == C_WHITE ? P_LR : P_DR), MVF_Quiet));
                 movelist_add(ml, move_encode(source, target, pawn,
-                    (b->state.side == LIGHT ? lB : dB), MVF_Quiet));
+                    (b->state.side == C_WHITE ? P_LB : P_DB), MVF_Quiet));
                 movelist_add(ml, move_encode(source, target, pawn,
-                    (b->state.side == LIGHT ? lN : dN), MVF_Quiet));
+                    (b->state.side == C_WHITE ? P_LN : P_DN), MVF_Quiet));
             } else {
                 // Quiet moves
                 movelist_add(ml, move_encode(
-                    source, target, pawn, E, MVF_Quiet));
+                    source, target, pawn, P_NONE, MVF_Quiet));
 
                 if (in_starting_rank(pawn, source)
-                    && !get_bit(b->pos.units[BOTH], target + direction))
-                    movelist_add(ml, move_encode(source, target + direction, pawn, E, MVF_TwoSquarePush));
+                    && !get_bit(b->pos.all_units, target + direction))
+                    movelist_add(ml, move_encode(source, target + direction,
+                        pawn, P_NONE, MVF_TwoSquarePush));
             }
         }
 
@@ -101,26 +102,27 @@ static void movelist_gen_pawn(MoveList *ml, Board *b) {
             if (in_promotion_rank(pawn, source)
                 && in_enemy_back_rank(pawn, attack_target)) {
                 movelist_add(ml, move_encode(source, attack_target, pawn,
-                    (b->state.side == LIGHT ? lQ : dQ), MVF_Capture));
+                    (b->state.side == C_WHITE ? P_LQ : P_DQ), MVF_Capture));
                 movelist_add(ml, move_encode(source, attack_target, pawn,
-                    (b->state.side == LIGHT ? lR : dR), MVF_Capture));
+                    (b->state.side == C_WHITE ? P_LR : P_DR), MVF_Capture));
                 movelist_add(ml, move_encode(source, attack_target, pawn,
-                    (b->state.side == LIGHT ? lB : dB), MVF_Capture));
+                    (b->state.side == C_WHITE ? P_LB : P_DB), MVF_Capture));
                 movelist_add(ml, move_encode(source, attack_target, pawn,
-                    (b->state.side == LIGHT ? lN : dN), MVF_Capture));
+                    (b->state.side == C_WHITE ? P_LN : P_DN), MVF_Capture));
             } else
-                movelist_add(ml, move_encode(source, attack_target, pawn, E, MVF_Capture));
+                movelist_add(ml, move_encode(source, attack_target,
+                    pawn, P_NONE, MVF_Capture));
             // Remove 'source' bit
             pop_bit(attack_copy, attack_target);
         }
         // Generate enpassant capture
-        if (b->state.enpassant != noSq) {
+        if (b->state.enpassant != SQ_NONE) {
             uint64_t enpassCapture =
                 pawn_attacks[b->state.side][source] & (1ULL << b->state.enpassant);
             if (enpassCapture) {
                 int enpassTarget = bb_lsb_index(enpassCapture);
                 movelist_add(ml, move_encode(
-                    source, enpassTarget, pawn, E, MVF_Enpassant));
+                    source, enpassTarget, pawn, P_NONE, MVF_Enpassant));
             }
         }
         // Remove bits
@@ -131,13 +133,23 @@ static void movelist_gen_pawn(MoveList *ml, Board *b) {
 static void movelist_gen_qrnbk(MoveList *ml, Board *b, PieceType pt) {
     Piece piece;
     switch (pt) {
-        case KNIGHT: piece = b->state.side == LIGHT ? lN : dN; break;
-        case BISHOP: piece = b->state.side == LIGHT ? lB : dB; break;
-        case ROOK  : piece = b->state.side == LIGHT ? lR : dR; break;
-        case QUEEN : piece = b->state.side == LIGHT ? lQ : dQ; break;
-        case KING  : piece = b->state.side == LIGHT ? lK : dK; break;
+        case PT_KNIGHT:
+            piece = b->state.side == C_WHITE ? P_LN : P_DN;
+            break;
+        case PT_BISHOP:
+            piece = b->state.side == C_WHITE ? P_LB : P_DB;
+            break;
+        case PT_ROOK:
+            piece = b->state.side == C_WHITE ? P_LR : P_DR;
+            break;
+        case PT_QUEEN:
+            piece = b->state.side == C_WHITE ? P_LQ : P_DQ;
+            break;
+        case PT_KING:
+            piece = b->state.side == C_WHITE ? P_LK : P_DK;
+            break;
 
-        case PAWN:
+        case PT_PAWN:
         default: UNREACHABLE("Pawn or unknown piece type");
     }
 
@@ -147,23 +159,33 @@ static void movelist_gen_qrnbk(MoveList *ml, Board *b, PieceType pt) {
         source = bb_lsb_index(bitboard_copy);
 
         switch (pt) {
-            case KNIGHT: attack_copy = knight_attacks[source]; break;
-            case BISHOP: attack_copy = get_bishop_attack(source, b->pos.units[BOTH]); break;
-            case ROOK  : attack_copy = get_rook_attack(source, b->pos.units[BOTH]); break;
-            case QUEEN : attack_copy = get_queen_attack(source, b->pos.units[BOTH]); break;
-            case KING  : attack_copy = king_attacks[source]; break;
+            case PT_KNIGHT:
+                attack_copy = knight_attacks[source];
+                break;
+            case PT_BISHOP:
+                attack_copy = get_bishop_attack(source, b->pos.all_units);
+                break;
+            case PT_ROOK:
+                attack_copy = get_rook_attack(source, b->pos.all_units);
+                break;
+            case PT_QUEEN:
+                attack_copy = get_queen_attack(source, b->pos.all_units);
+                break;
+            case PT_KING:
+                attack_copy = king_attacks[source];
+                break;
 
-            case PAWN:
+            case PT_PAWN:
             default: UNREACHABLE("Pawn or unknown piece type");
         }
 
-        attack_copy &= (b->state.side == LIGHT ? ~b->pos.units[LIGHT] : ~b->pos.units[DARK]);
+        attack_copy &= (b->state.side == C_WHITE ? ~b->pos.units[C_WHITE] : ~b->pos.units[C_BLACK]);
         while (attack_copy) {
             target = bb_lsb_index(attack_copy);
-            if (get_bit(b->pos.units[b->state.side == LIGHT ? DARK : LIGHT], target))
-                movelist_add(ml, move_encode(source, target, piece, E, MVF_Capture));
+            if (get_bit(b->pos.units[b->state.side == C_WHITE ? C_BLACK : C_WHITE], target))
+                movelist_add(ml, move_encode(source, target, piece, P_NONE, MVF_Capture));
             else
-                movelist_add(ml, move_encode(source, target, piece, E, MVF_Quiet));
+                movelist_add(ml, move_encode(source, target, piece, P_NONE, MVF_Quiet));
             pop_bit(attack_copy, target);
         }
         pop_bit(bitboard_copy, source);
@@ -172,44 +194,44 @@ static void movelist_gen_qrnbk(MoveList *ml, Board *b, PieceType pt) {
 
 static void movelist_gen_white_castling(MoveList *ml, Board *b) {
     // Kingside castling
-    if (get_bit(b->state.castling, cr_lK)) {
+    if (get_bit(b->state.castling, CR_LK)) {
         // Check if path is obstructed
-        if (!get_bit(b->pos.units[BOTH], f1) && !get_bit(b->pos.units[BOTH], g1)) {
+        if (!get_bit(b->pos.all_units, SQ_F1) && !get_bit(b->pos.all_units, SQ_G1)) {
             // Is e1 or f1 attacked by a black piece?
-            if (!board_is_sq_attacked(b, e1, DARK) && !board_is_sq_attacked(b, f1, DARK))
-                movelist_add(ml, move_encode(e1, g1, lK, E, MVF_Castling));
+            if (!board_is_sq_attacked(b, SQ_E1, C_BLACK) && !board_is_sq_attacked(b, SQ_F1, C_BLACK))
+                movelist_add(ml, move_encode(SQ_E1, SQ_G1, P_LK, P_NONE, MVF_Castling));
         }
     }
     // Queenside castling
-    if (get_bit(b->state.castling, cr_lQ)) {
+    if (get_bit(b->state.castling, CR_LQ)) {
         // Check if path is obstructed
-        if (!get_bit(b->pos.units[BOTH], b1) && !get_bit(b->pos.units[BOTH], c1) &&
-            !get_bit(b->pos.units[BOTH], d1)) {
+        if (!get_bit(b->pos.all_units, SQ_B1) && !get_bit(b->pos.all_units, SQ_C1) &&
+            !get_bit(b->pos.all_units, SQ_D1)) {
             // Is d1 or e1 attacked by a black piece?
-            if (!board_is_sq_attacked(b, d1, DARK) && !board_is_sq_attacked(b, e1, DARK))
-                movelist_add(ml, move_encode(e1, c1, lK, E, MVF_Castling));
+            if (!board_is_sq_attacked(b, SQ_D1, C_BLACK) && !board_is_sq_attacked(b, SQ_E1, C_BLACK))
+                movelist_add(ml, move_encode(SQ_E1, SQ_C1, P_LK, P_NONE, MVF_Castling));
         }
     }
 }
 
 static void movelist_gen_black_castling(MoveList *ml, Board *b) {
     // Kingside castling
-    if (get_bit(b->state.castling, cr_dK)) {
+    if (get_bit(b->state.castling, CR_DK)) {
         // Check if path is obstructed
-        if (!get_bit(b->pos.units[BOTH], f8) && !get_bit(b->pos.units[BOTH], g8)) {
+        if (!get_bit(b->pos.all_units, SQ_F8) && !get_bit(b->pos.all_units, SQ_G8)) {
             // Is e8 or f8 attacked by a white piece?
-            if (!board_is_sq_attacked(b, e8, LIGHT) && !board_is_sq_attacked(b, f8, LIGHT))
-                movelist_add(ml, move_encode(e8, g8, dK, E, MVF_Castling));
+            if (!board_is_sq_attacked(b, SQ_E8, C_WHITE) && !board_is_sq_attacked(b, SQ_F8, C_WHITE))
+                movelist_add(ml, move_encode(SQ_E8, SQ_G8, P_DK, P_NONE, MVF_Castling));
         }
     }
     // Queenside castling
-    if (get_bit(b->state.castling, cr_dQ)) {
+    if (get_bit(b->state.castling, CR_DQ)) {
         // Check if path is obstructed
-        if (!get_bit(b->pos.units[BOTH], b8) && !get_bit(b->pos.units[BOTH], c8) &&
-            !get_bit(b->pos.units[BOTH], d8)) {
+        if (!get_bit(b->pos.all_units, SQ_B8) && !get_bit(b->pos.all_units, SQ_C8) &&
+            !get_bit(b->pos.all_units, SQ_D8)) {
             // Is d8 or e8 attacked by a white piece?
-            if (!board_is_sq_attacked(b, d8, LIGHT) && !board_is_sq_attacked(b, e8, LIGHT))
-                movelist_add(ml, move_encode(e8, c8, dK, E, MVF_Castling));
+            if (!board_is_sq_attacked(b, SQ_D8, C_WHITE) && !board_is_sq_attacked(b, SQ_E8, C_WHITE))
+                movelist_add(ml, move_encode(SQ_E8, SQ_C8, P_DK, P_NONE, MVF_Castling));
         }
     }
 }
@@ -217,29 +239,29 @@ static void movelist_gen_black_castling(MoveList *ml, Board *b) {
 static void movelist_gen_king(MoveList *ml, Board *b) {
     // NOTE: Checks aren't handled by the move generator, it's handled by the make move function.
 
-    movelist_gen_qrnbk(ml, b, KING);
+    movelist_gen_qrnbk(ml, b, PT_KING);
     // Generate castling moves
-    if (b->state.side == LIGHT) movelist_gen_white_castling(ml, b);
+    if (b->state.side == C_WHITE) movelist_gen_white_castling(ml, b);
     else movelist_gen_black_castling(ml, b);
 }
 
 void movelist_generate(MoveList *ml, Board *b, Piece p) {
     switch (COLORLESS(p)) {
-        case PAWN: movelist_gen_pawn(ml, b); break;
-        case KNIGHT: movelist_gen_qrnbk(ml, b, KNIGHT); break;
-        case BISHOP: movelist_gen_qrnbk(ml, b, BISHOP); break;
-        case ROOK  : movelist_gen_qrnbk(ml, b, ROOK); break;
-        case QUEEN: movelist_gen_qrnbk(ml, b, QUEEN); break;
-        case KING: movelist_gen_king(ml, b); break;
+        case PT_PAWN: movelist_gen_pawn(ml, b); break;
+        case PT_KNIGHT: movelist_gen_qrnbk(ml, b, PT_KNIGHT); break;
+        case PT_BISHOP: movelist_gen_qrnbk(ml, b, PT_BISHOP); break;
+        case PT_ROOK  : movelist_gen_qrnbk(ml, b, PT_ROOK); break;
+        case PT_QUEEN: movelist_gen_qrnbk(ml, b, PT_QUEEN); break;
+        case PT_KING: movelist_gen_king(ml, b); break;
     }
 }
 
 void movelist_generate_all(MoveList *ml, Board *b) {
     movelist_gen_pawn(ml, b);
-    movelist_gen_qrnbk(ml, b, KNIGHT);
-    movelist_gen_qrnbk(ml, b, BISHOP);
-    movelist_gen_qrnbk(ml, b, ROOK);
-    movelist_gen_qrnbk(ml, b, QUEEN);
+    movelist_gen_qrnbk(ml, b, PT_KNIGHT);
+    movelist_gen_qrnbk(ml, b, PT_BISHOP);
+    movelist_gen_qrnbk(ml, b, PT_ROOK);
+    movelist_gen_qrnbk(ml, b, PT_QUEEN);
     movelist_gen_king(ml, b);
 }
 
