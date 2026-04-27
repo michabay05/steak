@@ -92,6 +92,7 @@ FENInfo parse_fen(const char *fen) {
     // Account for space and place on next char
     fen++;
 
+    info.enpassant = SQ_NONE;
     if (*fen != '-') {
         int file = *fen - 'a';
         fen++;

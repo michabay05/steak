@@ -112,5 +112,5 @@ int main(int argc, char **argv) {
     board_print(&board);
 
     // perft_test(&board, atoi(argv[1]));
-    perft_test(&board, 4);
+    perft_test(&board, 5);
 }

@@ -13,6 +13,15 @@ void bb_print(const uint64_t bitboard) {
     printf("\n\n      Decimal: %ld\n      Hexadecimal: 0x%lx\n", bitboard, bitboard);
 }
 
+#ifndef _WIN32
+int bb_count(uint64_t bitboard) {
+    return __builtin_popcountll(bitboard);
+}
+
+int bb_lsb_index(const uint64_t bitboard) {
+    return bitboard > 0 ? __builtin_ctzll(bitboard) : 0;
+}
+#else
 int bb_count(uint64_t bitboard) {
     int count = 0;
     for (count = 0; bitboard; count++, bitboard &= bitboard - 1)
@@ -23,3 +32,4 @@ int bb_count(uint64_t bitboard) {
 int bb_lsb_index(const uint64_t bitboard) {
     return bitboard > 0 ? bb_count(bitboard ^ (bitboard - 1)) - 1 : 0;
 }
+#endif
