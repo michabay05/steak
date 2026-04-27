@@ -1,11 +1,15 @@
 #define NOB_IMPLEMENTATION
 #include "../nob.h"
+#include "engine.h"
 
 #define INPUT_BUFSZ 8*1024
 
 typedef struct {
     bool quit;
+    Board board;
 } UCI_Info;
+
+#define DEFAULT_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
 void uci_parse(String_View args, UCI_Info *info) {
     args = sv_trim(args);
@@ -15,6 +19,13 @@ void uci_parse(String_View args, UCI_Info *info) {
         info->quit = true;
     } else if (sv_eq(first, sv_from_cstr("isready"))) {
         printf("readyok\n");
+    } else if (sv_eq(first, sv_from_cstr("eval"))) {
+        FENInfo f_info = parse_fen(
+            // DEFAULT_FEN
+            "rnbqkbnr/pppppppp/8/8/8/8/P1PPPPPP/RNBQKBNR w KQkq - 0 1"
+        );
+        board_set_from_fen(&info->board, f_info);
+        printf("Eval: %d\n", evaluate(&info->board));
     } else if (sv_eq(first, sv_from_cstr("uci"))) {
         printf("id name <placeholder>\n");
         printf("id author michabay05\n");
