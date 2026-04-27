@@ -10,7 +10,7 @@ typedef struct {
 } MoveList;
 
 void movelist_add(MoveList *ml, Move move);
-Move movelist_search(MoveList ml, Sq source, Sq target, Piece promoted);
+int movelist_search(MoveList ml, Sq source, Sq target, Piece promoted);
 void movelist_print_list(MoveList ml);
 
 void movelist_generate_all(MoveList *ml, Board *b);

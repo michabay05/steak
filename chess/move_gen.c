@@ -1,31 +1,27 @@
 #include "../nob.h"
-
 #include "move_gen.h"
 #include "bitboard.h"
-#include "board.h"
-#include "defs.h"
-#include "move.h"
 #include "precalculate.h"
+
 
 void movelist_add(MoveList *ml, Move move) {
     assert(ml->count < MOVE_GEN_MAX);
     ml->list[ml->count++] = move;
 }
 
-Move movelist_search(MoveList ml, Sq source, Sq target, Piece promoted) {
+int movelist_search(MoveList ml, Sq source, Sq target, Piece promoted) {
+    // The minimum amount of information required to determine if two moves are the same are the
+    // following: source, target, and promoted. The rest can be anything. The three can uniquely
+    // describe a move.
+    Move mv_target = move_encode(source, target, P_LP, promoted, MVF_Quiet);
     for (int i = 0; i < ml.count; i++) {
-        // Parse move info
-        Sq listMoveSource = ml.list[i].source;
-        Sq listMoveTarget = ml.list[i].target;
-        Piece listMovePromoted = move_get_promoted(ml.list[i]);
-        // Check if source and target match
-        if (listMoveSource == source && listMoveTarget == target && listMovePromoted == promoted)
-            // Return index of move from movelist, if true
-            return ml.list[i];
+        Move mv = ml.list[i];
+        if (move_eq(mv_target, mv)) return i;
     }
-    return (Move){0};
+    return -1;
 }
 
+#if 0
 void movelist_print_list(MoveList ml) {
     printf("    Source   |   Target  |  Piece  |  Promoted  |  Capture  |  Two "
            "Square Push  |  Enpassant  |  Castling\n");
@@ -44,6 +40,7 @@ void movelist_print_list(MoveList ml) {
     }
     printf("\n    Total number of moves: %d\n", ml.count);
 }
+#endif
 
 static void movelist_gen_pawn(MoveList *ml, Board *b) {
     #define in_enemy_back_rank(p, sq) (p == P_LP ? (SQ_A8 <= sq && sq <= SQ_H8) : (SQ_A1 <= sq && sq <= SQ_H1))

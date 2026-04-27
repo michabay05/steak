@@ -59,11 +59,12 @@ void perft_test(Board *board, int depth) {
     Board clone;
     // loop over generated moves
     for (int i = 0; i < ml.count; i++) {
+        Move mv = ml.list[i];
         // preserve board state
         clone = *board;
 
         // make move
-        if (!move_make(board, ml.list[i], AllMoves))
+        if (!move_make(board, mv, AllMoves))
             // skip to the next move
             continue;
 
@@ -80,11 +81,8 @@ void perft_test(Board *board, int depth) {
         *board = clone;
 
         // print move
-        printf("     move: %s%s%c  nodes: %ld\n",
-            str_coords[ml.list[i].source],
-            str_coords[ml.list[i].target],
-            move_get_promoted(ml.list[i]) ? piece_char[move_get_promoted(ml.list[i])] : ' ',
-            old_nodes);
+        printf("     move: %s%s%c  nodes: %ld\n", str_coords[mv.source],
+            str_coords[mv.target], piece_char[mv.promoted], old_nodes);
     }
 
     // print results
@@ -99,7 +97,7 @@ int main(int argc, char **argv) {
     // if (argc != 2) {
     //     fprintf(stderr, "[ERROR] Expected 2 cmdline args\n");
     //     fprintf(stderr, "[NOTE] Usage: %s <FEN> <depth>\n", program);
-    //     fprintf(stderr, "[WARN] Make sure that the fen string is single or double quoted\n");
+    //     fprintf(stderr, "[WARN] Make sure that the fen string is single or double-quoted\n");
     //     return 1;
     // }
 
