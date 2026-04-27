@@ -50,15 +50,30 @@ Piece pos_get_piece(const Position pos, Sq sq) {
 
 void pos_update_units(Position *pos) {
     // Reset all the units bitboard to 0
-    memset(pos->units, 0, sizeof(pos->units));
-    for (int i = PT_PAWN; i <= PT_KING; i++) {
-        pos->units[C_WHITE] |= pos->piece[i];
-        pos->units[C_BLACK] |= pos->piece[6 + i];
-    }
+    pos->units[C_WHITE] = pos->piece[P_LP]
+        | pos->piece[P_LN]
+        | pos->piece[P_LB]
+        | pos->piece[P_LR]
+        | pos->piece[P_LQ]
+        | pos->piece[P_LK];
+
+    pos->units[C_BLACK]  = pos->piece[P_DP]
+        | pos->piece[P_DN]
+        | pos->piece[P_DB]
+        | pos->piece[P_DR]
+        | pos->piece[P_DQ]
+        | pos->piece[P_DK];
+
     pos->all_units = pos->units[C_WHITE] | pos->units[C_BLACK];
+
+    // for (int i = PT_PAWN; i <= PT_KING; i++) {
+    //     pos->units[C_WHITE] |= pos->piece[i];
+    //     pos->units[C_BLACK] |= pos->piece[6 + i];
+    // }
+    // pos->all_units = pos->units[C_WHITE] | pos->units[C_BLACK];
 }
 
-void state_change_side(State *state) { state->side = !state->side; }
+void state_change_side(State *state) { state->side ^= 1; }
 
 void board_set_from_fen(Board *board, FENInfo fen) {
     *board = (Board){0};
@@ -135,6 +150,9 @@ bool board_is_sq_attacked(Board *b, Sq sq, Color side) {
 }
 
 bool board_is_in_check(Board *b) {
-    Piece king = b->state.side == C_WHITE ? P_DK : P_LK;
-    return board_is_sq_attacked(b, bb_lsb_index(b->pos.piece[king]), b->state.side);
+    return board_is_sq_attacked(
+        b,
+        bb_lsb_index(b->pos.piece[b->state.side == C_WHITE ? P_DK : P_LK]),
+        b->state.side
+    );
 }

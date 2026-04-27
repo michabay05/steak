@@ -36,7 +36,9 @@ char move_promoted_char(const Move move) {
     return promoted;
 }
 
-bool move_is_capture(const Move move) { return move.flag == MVF_Capture; }
+static inline bool move_is_capture(const Move move) {
+    return move.flag == MVF_Capture;
+}
 // bool move_is_two_square_push(const Move move) { return move & 0x200000; }
 // bool move_is_enpassant(const Move move) { return move & 0x400000; }
 // bool move_is_castling(const Move move) { return move & 0x800000; }
