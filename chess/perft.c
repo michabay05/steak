@@ -95,20 +95,22 @@ void perft_test(Board *board, int depth) {
 }
 
 int main(int argc, char **argv) {
-    char *program = nob_shift_args(&argc, &argv);
-    if (argc != 2) {
-        fprintf(stderr, "[ERROR] Expected 2 cmdline args\n");
-        fprintf(stderr, "[NOTE] Usage: %s <FEN> <depth>\n", program);
-        fprintf(stderr, "[WARN] Make sure that the fen string is single or double quoted\n");
-        return 1;
-    }
+    // char *program = nob_shift_args(&argc, &argv);
+    // if (argc != 2) {
+    //     fprintf(stderr, "[ERROR] Expected 2 cmdline args\n");
+    //     fprintf(stderr, "[NOTE] Usage: %s <FEN> <depth>\n", program);
+    //     fprintf(stderr, "[WARN] Make sure that the fen string is single or double quoted\n");
+    //     return 1;
+    // }
 
     attack_init();
 
-    Board board;
-    FENInfo fen_info = parse_fen(argv[0]);
+    Board board = {0};
+    // FENInfo fen_info = parse_fen(argv[0]);
+    FENInfo fen_info = parse_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
     board_set_from_fen(&board, fen_info);
     board_print(&board);
 
-    perft_test(&board, atoi(argv[1]));
+    // perft_test(&board, atoi(argv[1]));
+    perft_test(&board, 4);
 }

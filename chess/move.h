@@ -18,8 +18,8 @@ typedef enum {
 } MoveFlags;
 
 typedef struct {
-    Sq source : 6;
-    Sq target : 6;
+    Sq source : 7;
+    Sq target : 7;
     Piece piece : 4;
     Piece promoted : 4;
     MoveFlags flag : 3;
