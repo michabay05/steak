@@ -4,7 +4,7 @@
 
 
 void movelist_add(MoveList *ml, Move move) {
-    assert(ml->count < MOVE_GEN_MAX);
+    assert(ml->count < MOVE_GEN_MAX && "Surpassed max move count");
     ml->list[ml->count++] = move;
 }
 

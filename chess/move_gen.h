@@ -3,7 +3,7 @@
 
 #include "move.h"
 
-#define MOVE_GEN_MAX 256
+#define MOVE_GEN_MAX 100
 typedef struct {
     Move list[MOVE_GEN_MAX];
     int count;

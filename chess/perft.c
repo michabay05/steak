@@ -1,4 +1,5 @@
 #include "defs.h"
+#include "move.h"
 #include <stdio.h>
 
 #define NOB_IMPLEMENTATION
@@ -7,7 +8,7 @@
 #include "move_gen.h"
 
 // leaf nodes (number of positions reached during the test of the move generator at a given depth)
-uint64_t nodes;
+static u64 nodes = 0;
 
 // perft driver
 static inline void perft_driver(Board *board, int depth) {
@@ -54,7 +55,7 @@ void perft_test(Board *board, int depth) {
     movelist_generate_all(&ml, board);
 
     // init start time
-    uint64_t start = nanos_since_unspecified_epoch();
+    u64 start = nanos_since_unspecified_epoch();
 
     Board clone;
     // loop over generated moves
@@ -81,15 +82,16 @@ void perft_test(Board *board, int depth) {
         *board = clone;
 
         // print move
-        printf("     move: %s%s%c  nodes: %ld\n", str_coords[mv.source],
-            str_coords[mv.target], piece_char[mv.promoted], old_nodes);
+        char buf[6] = {0};
+        move_to_str(mv, buf);
+        printf("     move: %s  nodes: %ld\n", buf, old_nodes);
     }
 
     // print results
     printf("\n    Depth: %d\n", depth);
     printf("    Nodes: %ld\n", nodes);
     printf("     Time: %ld ms\n\n",
-        (uint64_t)((nanos_since_unspecified_epoch() - start) * 1e-6));
+        (u64)((nanos_since_unspecified_epoch() - start) * 1e-6));
 }
 
 int main(int argc, char **argv) {
@@ -105,7 +107,7 @@ int main(int argc, char **argv) {
 
     Board board = {0};
     // FENInfo fen_info = parse_fen(argv[0]);
-    FENInfo fen_info = parse_fen_cstr("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+    FENInfo fen_info = parse_fen_cstr("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10");
     board_set_from_fen(&board, fen_info);
     board_print(&board);
 
