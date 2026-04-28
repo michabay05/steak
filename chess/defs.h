@@ -8,8 +8,19 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "../nob.h"
+
+
+typedef int8_t i8;
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+
+#define ENUM_DEF(e_type, e_name) e_type e_name; enum
+
 // clang-format off
-typedef enum {
+typedef ENUM_DEF(u16, Sq) {
     SQ_A1, SQ_B1, SQ_C1, SQ_D1, SQ_E1, SQ_F1, SQ_G1, SQ_H1,
 	SQ_A2, SQ_B2, SQ_C2, SQ_D2, SQ_E2, SQ_F2, SQ_G2, SQ_H2,
     SQ_A3, SQ_B3, SQ_C3, SQ_D3, SQ_E3, SQ_F3, SQ_G3, SQ_H3,
@@ -19,7 +30,7 @@ typedef enum {
     SQ_A7, SQ_B7, SQ_C7, SQ_D7, SQ_E7, SQ_F7, SQ_G7, SQ_H7,
 	SQ_A8, SQ_B8, SQ_C8, SQ_D8, SQ_E8, SQ_F8, SQ_G8, SQ_H8,
 	SQ_COUNT, SQ_NONE,
-} Sq;
+};
 // clang-format on
 static_assert(SQ_COUNT == 64, "There needs to be 64 squares.");
 
@@ -28,7 +39,7 @@ extern const char piece_char[14];
 
 #define ROW(sq) (((Sq)sq) >> 3)
 #define COL(sq) (((Sq)sq) & 7)
-#define SQ(r, f) (((int)r) * 8 + ((int)f))
+#define SQ(r, f) ((Sq)((r) * 8 + (f)))
 #define FLIP(sq) ((Sq)sq ^ 56)
 #define COLORLESS(piece) (((Piece)piece) % 6)
 #define SQCLR(r, f) (((int)(r + f + 1)) & 1)
@@ -38,27 +49,29 @@ extern const char piece_char[14];
 #define pop_bit(bitboard, square) ((bitboard) &= ~(1ULL << (square)))
 
 /* Pieces */
-typedef enum {
+typedef ENUM_DEF(u8, Piece) {
     P_LP, P_LN, P_LB, P_LR, P_LQ, P_LK,
     P_DP, P_DN, P_DB, P_DR, P_DQ, P_DK,
     P_COUNT, P_NONE
-} Piece;
+};
 static_assert(P_COUNT == 12, "There needs to be 12 pieces.");
 
-typedef enum {
+typedef ENUM_DEF(u8, PieceType) {
     PT_PAWN, PT_KNIGHT, PT_BISHOP, PT_ROOK, PT_QUEEN, PT_KING,
     PT_COUNT
-} PieceType;
+};
 static_assert(PT_COUNT == 6, "There needs to be 6 piece types.");
 
-typedef enum { C_WHITE, C_BLACK, C_COUNT } Color;
+typedef ENUM_DEF(u8, Color) { C_WHITE, C_BLACK, C_COUNT };
 static_assert(C_COUNT == 2, "There needs to be 2 colors.");
 
-typedef enum { CR_LK, CR_LQ, CR_DK, CR_DQ, CR_COUNT } CastlingRight;
+typedef ENUM_DEF(u8, CastlingRight) {
+    CR_LK, CR_LQ, CR_DK, CR_DQ, CR_COUNT
+};
 static_assert(CR_COUNT == 4, "There needs to be 2 colors.");
 
 /* Direction offsets */
-typedef enum {
+typedef ENUM_DEF(i8, Direction) {
     DIR_NORTH = 8,
     DIR_SOUTH = -8,
     DIR_WEST = -1,
@@ -77,6 +90,6 @@ typedef enum {
     DIR_SEE = (-8 + 1) + 1, // -6
     DIR_SWS = (-8 - 1) - 8, // -17
     DIR_SWW = (-8 - 1) - 1, // -10
-} Direction;
+};
 
 #endif // _DEFS_H_

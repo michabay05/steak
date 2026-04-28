@@ -1,20 +1,21 @@
 #ifndef _BOARD_H_
 #define _BOARD_H_
 
+#include "bitboard.h"
 #include "fen.h"
 
 typedef struct {
-    uint64_t piece[12];
-    uint64_t units[2];
-    uint64_t all_units;
+    Bitboard piece[12];
+    Bitboard units[2];
+    Bitboard all_units;
 } Position;
 
 typedef struct {
     Color side;
-    int castling;
     Sq enpassant;
-    int half_moves;
-    int full_moves;
+    u16 half_moves;
+    u16 full_moves;
+    u8 castling;
 } State;
 
 typedef struct {

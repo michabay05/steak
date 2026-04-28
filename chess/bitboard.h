@@ -3,8 +3,10 @@
 
 #include "defs.h"
 
-void bb_print(const uint64_t bitboard);
-int bb_count(uint64_t bitboard);
-int bb_lsb_index(const uint64_t bitboard);
+typedef u64 Bitboard;
+
+void bb_print(Bitboard bb);
+int bb_count(Bitboard bb);
+int bb_lsb_index(Bitboard bb);
 
 #endif // _BITBOARD_H_

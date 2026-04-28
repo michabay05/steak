@@ -2,20 +2,20 @@
 #define _MOVE_H_
 
 #include "board.h"
+#include "defs.h"
 
 typedef enum {
     AllMoves,
     CapturesOnly,
 } MoveType;
 
-// typedef int32_t Move;
-typedef enum {
+typedef ENUM_DEF(u8, MoveFlags) {
     MVF_Quiet,
     MVF_Capture,
     MVF_TwoSquarePush,
     MVF_Enpassant,
     MVF_Castling,
-} MoveFlags;
+};
 
 typedef struct {
     Sq source : 7;

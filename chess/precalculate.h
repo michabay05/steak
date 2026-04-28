@@ -2,39 +2,41 @@
 #define _PRECALCULATE_H_
 
 #include "defs.h"
+#include "bitboard.h"
 
 // LEAPER PIECES
-extern uint64_t pawn_attacks[2][64];
-extern uint64_t knight_attacks[64];
-extern uint64_t king_attacks[64];
+extern Bitboard pawn_attacks[2][64];
+extern Bitboard knight_attacks[64];
+extern Bitboard king_attacks[64];
 
 // SLIDING PIECES
-extern uint64_t bishop_occ_mask[64];
-extern uint64_t bishop_attacks[64][512];
-extern uint64_t rook_occ_mask[64];
-extern uint64_t rook_attacks[64][4096];
+extern Bitboard bishop_occ_mask[64];
+extern Bitboard bishop_attacks[64][512];
+extern Bitboard rook_occ_mask[64];
+extern Bitboard rook_attacks[64][4096];
+
+extern int bishop_relevant_bits[64];
+extern int rook_relevant_bits[64];
 
 void attack_init(void);
 void attack_init_leapers(void);
 void attack_init_sliding(PieceType pt);
 
-void gen_pawn_attacks(Color color, Sq sq);
+void gen_pawn_attacks(Color side, Sq sq);
 void gen_knight_attacks(Sq sq);
 void gen_king_attacks(Sq sq);
+Bitboard gen_bishop_occupancy(Sq sq);
+Bitboard gen_bishop_attack(Sq sq, Bitboard blocker_board);
+Bitboard gen_rook_occupancy(Sq sq);
+Bitboard gen_rook_attack(Sq sq, Bitboard blocker_board);
+Bitboard set_occupancy(int index, int relevantBits, Bitboard occMask);
 
-uint64_t gen_bishop_occupancy(const Sq sq);
-uint64_t gen_bishop_attack(const Sq sq, uint64_t blockerBoard);
-uint64_t gen_rook_occupancy(const Sq sq);
-uint64_t gen_rook_attack(const Sq sq, const uint64_t blockerBoard);
-uint64_t set_occupancy(const int index, const int relevantBits, uint64_t occMask);
-
-uint32_t random_u32(void);
-uint64_t random_u64(void);
-uint64_t pseudo_random_magic(void);
-uint64_t find_magics(const Sq sq, const int relevantBits, const PieceType piece);
+u32 random_u32(void);
+u64 random_u64(void);
+u64 pseudo_random_magic(void);
 void magics_init(void);
-uint64_t get_bishop_attack(const Sq sq, uint64_t blockerBoard);
-uint64_t get_rook_attack(const Sq sq, uint64_t blockerBoard);
-uint64_t get_queen_attack(const Sq sq, uint64_t blockerBoard);
+Bitboard get_bishop_attack(Sq sq, Bitboard blocker_board);
+Bitboard get_rook_attack(Sq sq, Bitboard blocker_board);
+Bitboard get_queen_attack(Sq sq, Bitboard blocker_board);
 
 #endif // _PRECALCULATE_H_

@@ -1,18 +1,17 @@
 #include "precalculate.h"
-#include "bitboard.h"
 
 #include "magic_constants.h"
 
 // LEAPER PIECES
-uint64_t pawn_attacks[2][64];
-uint64_t knight_attacks[64];
-uint64_t king_attacks[64];
+Bitboard pawn_attacks[2][64];
+Bitboard knight_attacks[64];
+Bitboard king_attacks[64];
 
 // SLIDING PIECES
-uint64_t bishop_occ_mask[64];
-uint64_t bishop_attacks[64][512];
-uint64_t rook_occ_mask[64];
-uint64_t rook_attacks[64][4096];
+Bitboard bishop_occ_mask[64];
+Bitboard bishop_attacks[64][512];
+Bitboard rook_occ_mask[64];
+Bitboard rook_attacks[64][4096];
 
 // clang-format off
 // Total number of square a bishop can go to from a certain square
@@ -62,11 +61,12 @@ void attack_init_sliding(PieceType pt) {
         bishop_occ_mask[sq] = gen_bishop_occupancy(sq);
         rook_occ_mask[sq] = gen_rook_occupancy(sq);
 
-        uint64_t currentMask = (pt == PT_BISHOP) ? bishop_occ_mask[sq] : rook_occ_mask[sq];
+        Bitboard currentMask = (pt == PT_BISHOP)
+            ? bishop_occ_mask[sq] : rook_occ_mask[sq];
         int bitCount = bb_count(currentMask);
         for (int count = 0; count < (1 << bitCount); count++) {
             // Generate a 'blocking' variation based on the current 'blocking' mask
-            uint64_t occupancy = set_occupancy(count, bitCount, currentMask);
+            Bitboard occupancy = set_occupancy(count, bitCount, currentMask);
             int magicInd;
             // Generate a magic index that can be used to store the attack's sliding
             // pieces
@@ -86,7 +86,7 @@ void gen_pawn_attacks(Color side, Sq sq) {
        the white pieces attack towards 0 while the black pieces
        attack towards 63.
     */
-    uint8_t r = ROW(sq), f = COL(sq);
+    u8 r = ROW(sq), f = COL(sq);
 
     if (side == C_WHITE) {
         if (r < 7 && f > 0) set_bit(pawn_attacks[C_WHITE][sq], sq + DIR_NW);
@@ -98,7 +98,7 @@ void gen_pawn_attacks(Color side, Sq sq) {
 }
 
 void gen_knight_attacks(Sq sq) {
-    uint8_t r = ROW(sq), f = COL(sq);
+    u8 r = ROW(sq), f = COL(sq);
     if (r <= 5 && f >= 1)
         set_bit(knight_attacks[sq], sq + DIR_NWN);
 
@@ -125,7 +125,7 @@ void gen_knight_attacks(Sq sq) {
 }
 
 void gen_king_attacks(Sq sq) {
-    uint8_t r = ROW(sq), f = COL(sq);
+    u8 r = ROW(sq), f = COL(sq);
 
     if (r > 0) set_bit(king_attacks[sq], sq + DIR_SOUTH);
     if (r < 7) set_bit(king_attacks[sq], sq + DIR_NORTH);
@@ -138,8 +138,8 @@ void gen_king_attacks(Sq sq) {
     if (r < 7 && f < 7) set_bit(king_attacks[sq], sq + DIR_NE);
 }
 
-uint64_t gen_bishop_occupancy(Sq sq) {
-    uint64_t output = 0ULL;
+Bitboard gen_bishop_occupancy(Sq sq) {
+    Bitboard output = 0ULL;
     int r, f;
     int sr = ROW(sq), sf = COL(sq);
 
@@ -160,8 +160,8 @@ uint64_t gen_bishop_occupancy(Sq sq) {
 
 /* Generates a bishop's attack given its sq and a 'blocking' pieces on its
    path */
-uint64_t gen_bishop_attack(Sq sq, uint64_t blocker_board) {
-    uint64_t output = 0ULL;
+Bitboard gen_bishop_attack(Sq sq, Bitboard blocker_board) {
+    Bitboard output = 0ULL;
     int r, f;
     int sr = ROW(sq), sf = COL(sq);
 
@@ -190,8 +190,8 @@ uint64_t gen_bishop_attack(Sq sq, uint64_t blocker_board) {
 }
 
 /* Generates all the maximum occupancy on a rook's path on its given square */
-uint64_t gen_rook_occupancy(Sq sq) {
-    uint64_t output = 0ULL;
+Bitboard gen_rook_occupancy(Sq sq) {
+    Bitboard output = 0ULL;
     int r, f;
     int sr = ROW(sq), sf = COL(sq);
 
@@ -213,8 +213,8 @@ uint64_t gen_rook_occupancy(Sq sq) {
 
 /* Generates a rook's attack given its sq and a 'blocking' pieces on its
    path */
-uint64_t gen_rook_attack(Sq sq, uint64_t blocker_board) {
-    uint64_t output = 0ULL;
+Bitboard gen_rook_attack(Sq sq, Bitboard blocker_board) {
+    Bitboard output = 0ULL;
     int r, f;
     int sr = ROW(sq), sf = COL(sq);
 
@@ -248,8 +248,8 @@ uint64_t gen_rook_attack(Sq sq, uint64_t blocker_board) {
 
 /* Generates a variation of 'blocking' pieces given an index, relevant bits, and
    occupancy mask */
-uint64_t set_occupancy(int index, int relevantBits, uint64_t occMask) {
-    uint64_t occupancy = 0ULL;
+Bitboard set_occupancy(int index, int relevantBits, Bitboard occMask) {
+    Bitboard occupancy = 0ULL;
     for (int count = 0; count < relevantBits; count++) {
         int ls1bIndex = bb_lsb_index(occMask);
         pop_bit(occMask, ls1bIndex);
@@ -259,10 +259,9 @@ uint64_t set_occupancy(int index, int relevantBits, uint64_t occMask) {
     return occupancy;
 }
 
-uint32_t randomState = 1804289383;
-
-uint32_t random_u32(void) {
-    uint32_t number = randomState;
+static u32 randomState = 1804289383;
+u32 random_u32(void) {
+    u32 number = randomState;
 
     // XOR shift algorithm
     number ^= number << 13;
@@ -276,21 +275,25 @@ uint32_t random_u32(void) {
     return number;
 }
 
-uint64_t random_u64(void) {
-    uint64_t rand1, rand2, rand3, rand4;
-    rand1 = (uint64_t)(random_u32() & 0xFFFF);
-    rand2 = (uint64_t)(random_u32() & 0xFFFF);
-    rand3 = (uint64_t)(random_u32() & 0xFFFF);
-    rand4 = (uint64_t)(random_u32() & 0xFFFF);
+u64 random_u64(void) {
+    u64 rand1, rand2, rand3, rand4;
+    rand1 = (u64)(random_u32() & 0xFFFF);
+    rand2 = (u64)(random_u32() & 0xFFFF);
+    rand3 = (u64)(random_u32() & 0xFFFF);
+    rand4 = (u64)(random_u32() & 0xFFFF);
     return rand1 | (rand2 << 16) | (rand3 << 32) | (rand4 << 48);
 }
 
-uint64_t pseudo_random_magic(void) { return random_u64() & random_u64() & random_u64(); }
+// Used to generate sparse, random 64-bit numbers
+// -> Sparse: the number of 1 (on-bits) are minimal
+u64 pseudo_random_magic(void) {
+    return random_u64() & random_u64() & random_u64();
+}
 
-uint64_t find_magics(Sq sq, int relevant_bits, PieceType piece) {
+Bitboard find_magics(Sq sq, int relevant_bits, PieceType piece) {
     // 4096(1 << 12) - because it's maximum possible occupancy variations
-    uint64_t used_attacks[4096], occupancies[4096], attacks[4096], magic_number;
-    uint64_t possible_occ = (piece == PT_BISHOP) ? gen_bishop_occupancy(sq) : gen_rook_occupancy(sq);
+    Bitboard used_attacks[4096], occupancies[4096], attacks[4096], magic_number;
+    Bitboard possible_occ = (piece == PT_BISHOP) ? gen_bishop_occupancy(sq) : gen_rook_occupancy(sq);
     int occupancy_indices = 1 << relevant_bits;
     for (int count = 0; count < occupancy_indices; count++) {
         occupancies[count] = set_occupancy(
@@ -323,32 +326,32 @@ uint64_t find_magics(Sq sq, int relevant_bits, PieceType piece) {
 
 void magics_init(void) {
     int sq;
-    printf("uint64_t rook_magics[64] = {\n");
+    printf("u64 rook_magics[64] = {\n");
     for (sq = 0; sq < 64; sq++)
         printf("0x%016lxULL,\n", find_magics(sq, rook_relevant_bits[sq], PT_ROOK));
 
     printf("\n};\n\n");
-    printf("uint64_t bishop_magics[64] = {\n");
+    printf("u64 bishop_magics[64] = {\n");
     for (sq = 0; sq < 64; sq++)
         printf("0x%016lxULL,\n", find_magics(sq, bishop_relevant_bits[sq], PT_BISHOP));
     printf("};\n");
 }
 
-uint64_t get_bishop_attack(Sq sq, uint64_t blocker_board) {
+Bitboard get_bishop_attack(Sq sq, Bitboard blocker_board) {
     blocker_board &= bishop_occ_mask[sq];
     blocker_board *= bishop_magics[sq];
     blocker_board >>= (64 - bishop_relevant_bits[sq]);
     return bishop_attacks[sq][blocker_board];
 }
 
-uint64_t get_rook_attack(Sq sq, uint64_t blocker_board) {
+Bitboard get_rook_attack(Sq sq, Bitboard blocker_board) {
     blocker_board &= rook_occ_mask[sq];
     blocker_board *= rook_magics[sq];
     blocker_board >>= (64 - rook_relevant_bits[sq]);
     return rook_attacks[sq][blocker_board];
 }
 
-uint64_t get_queen_attack(Sq sq, uint64_t blocker_board) {
+Bitboard get_queen_attack(Sq sq, Bitboard blocker_board) {
     return get_bishop_attack(sq, blocker_board) | get_rook_attack(sq, blocker_board);
 }
 

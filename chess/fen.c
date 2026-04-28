@@ -1,8 +1,11 @@
 #include "fen.h"
-#include <stdbool.h>
-#include <stdint.h>
 
-FENInfo parse_fen(const char *fen) {
+inline FENInfo parse_fen_cstr(const char *fen) {
+    return parse_fen_sv(sv_from_cstr(fen));
+}
+
+FENInfo parse_fen_sv(String_View fen) {
+    int i = 0;
     FENInfo info = {0};
     // Piece placements
     uint8_t rank = 7, file = 0;
@@ -11,69 +14,46 @@ FENInfo parse_fen(const char *fen) {
     for (int i = 0; i < 64; i++)
         info.board[i] = P_NONE;
 
-    while (fen && *fen != ' ') {
-        if (*fen == '/') {
+    while (i < fen.count && fen.data[i] != ' ') {
+        if (fen.data[i] == '/') {
             rank--;
             file = 0;
-            fen++;
+            i++;
             continue;
-        } else if (*fen >= '0' && *fen <= '9') {
-            file += *fen - '0';
-            fen++;
+        } else if (fen.data[i] >= '0' && fen.data[i] <= '9') {
+            file += fen.data[i] - '0';
+            i++;
             continue;
         }
 
-        switch (*fen) {
-        case 'K':
-            info.board[SQ(rank, file)] = P_LK;
-            break;
-        case 'Q':
-            info.board[SQ(rank, file)] = P_LQ;
-            break;
-        case 'R':
-            info.board[SQ(rank, file)] = P_LR;
-            break;
-        case 'B':
-            info.board[SQ(rank, file)] = P_LB;
-            break;
-        case 'N':
-            info.board[SQ(rank, file)] = P_LN;
-            break;
-        case 'P':
-            info.board[SQ(rank, file)] = P_LP;
-            break;
-        case 'k':
-            info.board[SQ(rank, file)] = P_DK;
-            break;
-        case 'q':
-            info.board[SQ(rank, file)] = P_DQ;
-            break;
-        case 'r':
-            info.board[SQ(rank, file)] = P_DR;
-            break;
-        case 'b':
-            info.board[SQ(rank, file)] = P_DB;
-            break;
-        case 'n':
-            info.board[SQ(rank, file)] = P_DN;
-            break;
-        case 'p':
-            info.board[SQ(rank, file)] = P_DP;
-            break;
+        Sq sq = SQ(rank, file);
+        switch (fen.data[i]) {
+            case 'K': info.board[sq] = P_LK; break;
+            case 'Q': info.board[sq] = P_LQ; break;
+            case 'R': info.board[sq] = P_LR; break;
+            case 'B': info.board[sq] = P_LB; break;
+            case 'N': info.board[sq] = P_LN; break;
+            case 'P': info.board[sq] = P_LP; break;
+            case 'k': info.board[sq] = P_DK; break;
+            case 'q': info.board[sq] = P_DQ; break;
+            case 'r': info.board[sq] = P_DR; break;
+            case 'b': info.board[sq] = P_DB; break;
+            case 'n': info.board[sq] = P_DN; break;
+            case 'p': info.board[sq] = P_DP; break;
         }
         file++;
-        fen++;
+        i++;
     }
     // Push pointer one more to account for space
-    fen++;
-    info.side = !(*fen == 'w');
-    fen++;
+    i++;
+    info.side = !(fen.data[i] == 'w');
+    i++;
 
     // Account for space and place on next char
-    fen++;
+    i++;
 
-    while (fen && *fen != ' ') {
-        switch (*fen) {
+    while (i < fen.count && fen.data[i] != ' ') {
+        switch (fen.data[i]) {
         case 'K':
             set_bit(info.castling, 0);
             break;
@@ -87,30 +67,30 @@ FENInfo parse_fen(const char *fen) {
             set_bit(info.castling, 3);
             break;
         }
-        fen++;
+        i++;
     }
     // Account for space and place on next char
-    fen++;
+    i++;
 
     info.enpassant = SQ_NONE;
-    if (*fen != '-') {
-        int file = *fen - 'a';
-        fen++;
-        int rank = 8 - (*fen - '0');
+    if (fen.data[i] != '-') {
+        int file = fen.data[i] - 'a';
+        i++;
+        int rank = 8 - (fen.data[i] - '0');
         info.enpassant = SQ(rank, file);
-        fen++;
+        i++;
     } else {
-        fen++;
+        i++;
     }
 
     // Account for space and place on next char
-    fen++;
+    i++;
 
-    info.half_moves = *fen - '0';
-    fen++;
+    info.half_moves = fen.data[i] - '0';
+    i++;
     // Account for space and place on next char
-    fen++;
-    info.full_moves = *fen - '0';
+    i++;
+    info.full_moves = fen.data[i] - '0';
     return info;
 }
 

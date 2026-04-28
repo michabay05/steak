@@ -1,4 +1,3 @@
-#include "../nob.h"
 #include "move_gen.h"
 #include "bitboard.h"
 #include "precalculate.h"
@@ -50,7 +49,7 @@ static void movelist_gen_pawn(MoveList *ml, Board *b) {
     #define in_promotion_rank(p, sq) (p == P_LP ? (SQ_A7 <= sq && sq <= SQ_H7) : (SQ_A2 <= sq && sq <= SQ_H2))
 
 
-    uint64_t bitboard_copy, attack_copy;
+    Bitboard bitboard_copy, attack_copy;
     Piece pawn;
     Direction direction;
     Sq source, target;
@@ -114,7 +113,7 @@ static void movelist_gen_pawn(MoveList *ml, Board *b) {
         }
         // Generate enpassant capture
         if (b->state.enpassant != SQ_NONE) {
-            uint64_t enpassCapture =
+            Bitboard enpassCapture =
                 pawn_attacks[b->state.side][source] & (1ULL << b->state.enpassant);
             if (enpassCapture) {
                 int enpassTarget = bb_lsb_index(enpassCapture);
@@ -151,7 +150,7 @@ static void movelist_gen_qrnbk(MoveList *ml, Board *b, PieceType pt) {
     }
 
     Sq source, target;
-    uint64_t bitboard_copy = b->pos.piece[piece], attack_copy;
+    Bitboard bitboard_copy = b->pos.piece[piece], attack_copy;
     while (bitboard_copy) {
         source = bb_lsb_index(bitboard_copy);
 

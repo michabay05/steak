@@ -1,4 +1,3 @@
-#include "bitboard.h"
 #include "precalculate.h"
 #include "board.h"
 
@@ -12,11 +11,11 @@ const char *str_coords[66] = {
     "a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
     "a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
     "a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",
-    "??", " "
+    "??", "none"
 };
 
 const char piece_char[14] = {
-    'P', 'N', 'B', 'R', 'Q', 'K', 'p', 'n', 'b', 'r', 'q', 'k', '?', ' '
+    'P', 'N', 'B', 'R', 'Q', 'K', 'p', 'n', 'b', 'r', 'q', 'k', '?', '_'
 };
 
 const int castling_rights[64] = {
@@ -79,8 +78,7 @@ void board_set_from_fen(Board *board, FENInfo fen) {
     *board = (Board){0};
     // Set pieces
     for (int i = 0; i < 64; i++) {
-        if (fen.board[i] == P_NONE)
-            continue;
+        if (fen.board[i] == P_NONE) continue;
         pos_add_piece(&board->pos, fen.board[i], i);
     }
     board->state.side = fen.side;
@@ -90,20 +88,18 @@ void board_set_from_fen(Board *board, FENInfo fen) {
     board->state.full_moves = fen.full_moves;
 }
 
-/*
-static void print_castling(int castling) {
-    char castling_str[4] = {'-', '-', '-', '-'};
-    if (castling & cr_lK)
-        castling_str[0] = 'K';
-    if (castling & cr_lQ)
-        castling_str[1] = 'Q';
-    if (castling & cr_dK)
-        castling_str[2] = 'k';
-    if (castling & cr_dQ)
-        castling_str[3] = 'q';
-    printf("%s\n", castling_str);
+static void print_castling(u8 castling) {
+    if (castling == 0) {
+        printf("-\n");
+        return;
+    }
+
+    if (castling & CR_LK) printf("K");
+    if (castling & CR_LQ) printf("Q");
+    if (castling & CR_DK) printf("k");
+    if (castling & CR_DQ) printf("q");
+    printf("\n");
 }
-*/
 
 void board_print(Board *b) {
     printf("\n    +---+---+---+---+---+---+---+---+\n");
@@ -117,12 +113,12 @@ void board_print(Board *b) {
     printf("      a   b   c   d   e   f   g   h\n\n");
     printf("        Side: %s\n", !b->state.side ? "white" : "black");
     printf("   Enpassant: %s\n", str_coords[b->state.enpassant]);
-    // printf("    Castling: ");
-    // print_castling(b->state.castling);
+    printf("    Castling: ");
+    print_castling(b->state.castling);
     printf("       Moves: %d\n", b->state.full_moves);
 }
 
-bool board_is_sq_attacked(Board *b, Sq sq, Color side) {
+inline bool board_is_sq_attacked(Board *b, Sq sq, Color side) {
     // Attacked by white pawns
     if ((side == C_WHITE) && (pawn_attacks[C_BLACK][sq] & b->pos.piece[P_LP]))
         return true;
@@ -149,7 +145,7 @@ bool board_is_sq_attacked(Board *b, Sq sq, Color side) {
     return false;
 }
 
-bool board_is_in_check(Board *b) {
+inline bool board_is_in_check(Board *b) {
     return board_is_sq_attacked(
         b,
         bb_lsb_index(b->pos.piece[b->state.side == C_WHITE ? P_DK : P_LK]),

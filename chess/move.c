@@ -38,31 +38,17 @@ Move move_parse(char *move_str, Piece piece, MoveFlags flag) {
     int target = SQ(move_str[3] - '0', move_str[2] - 'a');
     Piece promoted = P_NONE;
     if (move_str && (move_str[4] >= 'a' && move_str[4] <= 'z')) {
+        // TODO: this is not correct. Promoted should keep track of the piece type not an actual
+        // piece. Fix this.
         switch (move_str[4]) {
-        case 'Q':
-            promoted = P_LQ;
-            break;
-        case 'R':
-            promoted = P_LR;
-            break;
-        case 'B':
-            promoted = P_LB;
-            break;
-        case 'N':
-            promoted = P_LN;
-            break;
-        case 'q':
-            promoted = P_DQ;
-            break;
-        case 'r':
-            promoted = P_DR;
-            break;
-        case 'b':
-            promoted = P_DB;
-            break;
-        case 'n':
-            promoted = P_DN;
-            break;
+            case 'Q': promoted = P_LQ; break;
+            case 'R': promoted = P_LR; break;
+            case 'B': promoted = P_LB; break;
+            case 'N': promoted = P_LN; break;
+            case 'q': promoted = P_DQ; break;
+            case 'r': promoted = P_DR; break;
+            case 'b': promoted = P_DB; break;
+            case 'n': promoted = P_DN; break;
         }
     }
     Move ouptut = move_encode(source, target, piece, promoted, flag);
