@@ -10,12 +10,14 @@
 
 #include "../nob.h"
 
-
 typedef int8_t i8;
 typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
+
+typedef u64 Bitboard;
+
 
 #define ENUM_DEF(e_type, e_name) e_type e_name; enum
 
@@ -34,8 +36,21 @@ typedef ENUM_DEF(u16, Sq) {
 // clang-format on
 static_assert(SQ_COUNT == 64, "There needs to be 64 squares.");
 
+typedef ENUM_DEF(u8, Rank) {
+    RANK_1, RANK_2, RANK_3, RANK_4,
+    RANK_5, RANK_6, RANK_7, RANK_8, RANK_COUNT,
+};
+static_assert(RANK_COUNT == 8, "There needs to be 8 ranks (rows).");
+
+typedef ENUM_DEF(u8, File) {
+    FILE_1, FILE_2, FILE_3, FILE_4,
+    FILE_5, FILE_6, FILE_7, FILE_8, FILE_COUNT,
+};
+static_assert(FILE_COUNT == 8, "There needs to be 8 files (columns).");
+
 extern const char *str_coords[66];
 extern const char piece_char[14];
+extern const Bitboard RANK_MASK[8];
 
 #define ROW(sq) (((Sq)sq) >> 3)
 #define COL(sq) (((Sq)sq) & 7)
@@ -43,6 +58,10 @@ extern const char piece_char[14];
 #define FLIP(sq) ((Sq)sq ^ 56)
 #define COLORLESS(piece) (((Piece)piece) % 6)
 #define SQCLR(r, f) (((int)(r + f + 1)) & 1)
+// Takes an integer value and converts it to 0 or 1
+#define TO_BOOL(x) (x != 0)
+// Provide: (c - Color) and (p - PieceType)
+#define TO_PIECE(c, p) (TO_BOOL(c) * PT_COUNT + p)
 
 #define set_bit(bitboard, square) ((bitboard) |= (1ULL << (square)))
 #define get_bit(bitboard, square) (((bitboard) & (1ULL << (square))) ? 1 : 0)
@@ -58,7 +77,7 @@ static_assert(P_COUNT == 12, "There needs to be 12 pieces.");
 
 typedef ENUM_DEF(u8, PieceType) {
     PT_PAWN, PT_KNIGHT, PT_BISHOP, PT_ROOK, PT_QUEEN, PT_KING,
-    PT_COUNT
+    PT_COUNT, PT_NONE
 };
 static_assert(PT_COUNT == 6, "There needs to be 6 piece types.");
 

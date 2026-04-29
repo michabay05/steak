@@ -8,7 +8,7 @@ FENInfo parse_fen_sv(String_View fen) {
     int i = 0;
     FENInfo info = {0};
     // Piece placements
-    uint8_t rank = 7, file = 0;
+    u8 rank = 7, file = 0;
 
     // Set every square to be empty before setting values
     for (int i = 0; i < 64; i++)
