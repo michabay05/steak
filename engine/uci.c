@@ -13,8 +13,10 @@ typedef struct {
 #define ENGINE_VERSION "1.0"
 
 int sv_index(String_View haystack, String_View needle) {
-    int n = haystack.count;
-    for (int i = 0; i < n - needle.count; i++) {
+    if (haystack.count < needle.count) return -1;
+
+    int n = haystack.count - needle.count;
+    for (int i = 0; i < n; i++) {
         String_View temp = sv_chop_left(&haystack, 1);
 
         bool found = true;
@@ -38,7 +40,7 @@ void _parse_position(UCI_Info *info, String_View args) {
         fen_sv = sv_from_cstr(DEFAULT_FEN);
     } else if (sv_eq(cmd, sv_from_cstr("fen"))) {
         int fen_r_end = moves_ind >= 0 ? moves_ind : args.count;
-        fen_sv = nob_sv_chop_left(&args, fen_r_end);
+        fen_sv = sv_chop_left(&args, fen_r_end);
     } else {
         fprintf(stderr, "Unknown `position` command: "SV_Fmt, SV_Arg(cmd));
         return;
@@ -50,7 +52,6 @@ void _parse_position(UCI_Info *info, String_View args) {
     board_set_from_fen(&info->board, fen_info);
 
     if (moves_ind < 0) return;
-    printf("[T] <"SV_Fmt">\n", SV_Arg(args));
 
     String_View moves_sv = sv_chop_by_delim(&args, ' ');
     MoveList ml = {0};
