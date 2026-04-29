@@ -20,16 +20,15 @@ typedef ENUM_DEF(u8, MoveFlags) {
 typedef struct {
     Sq source : 7;
     Sq target : 7;
-    Piece piece : 4;
-    Piece promoted : 4;
+    PieceType promoted : 3;
     MoveFlags flag : 3;
 } Move;
 
-Move move_encode(Sq source, Sq target, Piece piece, Piece promoted,
-    MoveFlags flag);
+Move move_encode(Sq source, Sq target, PieceType promoted, MoveFlags flag);
 bool move_eq(Move a, Move b);
 void move_to_str(Move move, char *move_str);
-Move move_parse(char *move_str, Piece piece, MoveFlags flag);
+Move move_parse_cstr(char *move_str);
+Move move_parse_sv(String_View msv);
 bool move_make(Board *main, Move move, MoveType move_flag);
 
 #endif // _MOVE_H_

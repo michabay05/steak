@@ -48,8 +48,8 @@ static const int MVV_LVA[12][12] = {
 #define NULL_MOVE_REDUCTION 2
 
 struct {
-    uint32_t ply;
-    uint32_t nodes;
+    u32 ply;
+    u32 nodes;
 
     // NOTE: Killer moves
     // Typically, captures produce beta-cutoff (aka. moves that fail high).
@@ -105,6 +105,7 @@ int score_move(Board *board, Move mv) {
         }
     }
 
+    Piece piece = pos_get_piece(board->pos, mv.source);
     if (mv.flag == MVF_Capture) {
         Piece captured_piece = P_LP;
 
@@ -130,7 +131,7 @@ int score_move(Board *board, Move mv) {
             }
         }
 
-        return MVV_LVA[mv.piece][captured_piece] + 10000;
+        return MVV_LVA[piece][captured_piece] + 10000;
     } else {
         if (*(int32_t*)&S_INFO.killer_moves[0][S_INFO.ply]
             == *(int32_t*)&mv)
@@ -144,7 +145,7 @@ int score_move(Board *board, Move mv) {
             return 8000;
         } else {
             // Score history move
-            return S_INFO.history_moves[mv.piece][mv.target];
+            return S_INFO.history_moves[piece][mv.target];
         }
     }
 }
@@ -364,7 +365,7 @@ int negamax(Board *board, int alpha, int beta, int depth) {
         if (score > alpha) {
             // A better move has been found
             if (mv.flag != MVF_Capture) {
-                S_INFO.history_moves[mv.piece][mv.target] += depth;
+                S_INFO.history_moves[pos_get_piece(board->pos, mv.source)][mv.target] += depth;
             }
 
             // PV node (move)

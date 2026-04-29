@@ -15,7 +15,7 @@ const char *str_coords[66] = {
 };
 
 const char piece_char[14] = {
-    'P', 'N', 'B', 'R', 'Q', 'K', 'p', 'n', 'b', 'r', 'q', 'k', '?', '_'
+    'P', 'N', 'B', 'R', 'Q', 'K', 'p', 'n', 'b', 'r', 'q', 'k', '?', ' '
 };
 
 const int castling_rights[64] = {
@@ -94,10 +94,10 @@ static void print_castling(u8 castling) {
         return;
     }
 
-    if (castling & CR_LK) printf("K");
-    if (castling & CR_LQ) printf("Q");
-    if (castling & CR_DK) printf("k");
-    if (castling & CR_DQ) printf("q");
+    if (castling & (1 << CR_LK)) printf("K");
+    if (castling & (1 << CR_LQ)) printf("Q");
+    if (castling & (1 << CR_DK)) printf("k");
+    if (castling & (1 << CR_DQ)) printf("q");
     printf("\n");
 }
 

@@ -1,11 +1,12 @@
 #include "move.h"
+#include "board.h"
+#include "defs.h"
 
-Move move_encode(Sq source, Sq target, Piece piece, Piece promoted,
+Move move_encode(Sq source, Sq target, PieceType promoted,
     MoveFlags flag) {
     return (Move) {
         .source = source,
         .target = target,
-        .piece = piece,
         .promoted = promoted,
         .flag = flag
     };
@@ -25,38 +26,42 @@ void move_to_str(Move move, char *move_str) {
     move_str[2] = str_coords[move.target][0];
     move_str[3] = str_coords[move.target][1];
     // Promotion piece
-    if (move.promoted != P_NONE) {
-        move_str[4] = piece_char[move.promoted];
+    if (move.promoted != PT_NONE) {
+        move_str[4] = piece_char[TO_PIECE(C_BLACK, move.promoted)];
         move_str[5] = 0;
     } else {
         move_str[4] = 0;
     }
 }
 
-Move move_parse(char *move_str, Piece piece, MoveFlags flag) {
-    int source = SQ(move_str[1] - '0', move_str[0] - 'a');
-    int target = SQ(move_str[3] - '0', move_str[2] - 'a');
-    Piece promoted = P_NONE;
-    if (move_str && (move_str[4] >= 'a' && move_str[4] <= 'z')) {
+Move move_parse_cstr(char *move_str) {
+    return move_parse_sv(sv_from_cstr(move_str));
+}
+
+// NOTE: Since a move flag can not be associated with a move upon parsing, a default move flag of
+// QUIET is assigned to the returned move.
+Move move_parse_sv(String_View msv) {
+    assert(msv.count == 4 || msv.count == 5);
+
+    int source = SQ(msv.data[1] - '1', msv.data[0] - 'a');
+    int target = SQ(msv.data[3] - '1', msv.data[2] - 'a');
+    PieceType promoted = PT_NONE;
+    if (msv.count == 5 && (msv.data[4] >= 'a' && msv.data[4] <= 'z')) {
         // TODO: this is not correct. Promoted should keep track of the piece type not an actual
         // piece. Fix this.
-        switch (move_str[4]) {
-            case 'Q': promoted = P_LQ; break;
-            case 'R': promoted = P_LR; break;
-            case 'B': promoted = P_LB; break;
-            case 'N': promoted = P_LN; break;
-            case 'q': promoted = P_DQ; break;
-            case 'r': promoted = P_DR; break;
-            case 'b': promoted = P_DB; break;
-            case 'n': promoted = P_DN; break;
+        switch (msv.data[4]) {
+            case 'Q':
+            case 'q': promoted = PT_QUEEN; break;
+            case 'R':
+            case 'r': promoted = PT_ROOK; break;
+            case 'B':
+            case 'b': promoted = PT_BISHOP; break;
+            case 'N':
+            case 'n': promoted = PT_KNIGHT; break;
         }
     }
-    Move ouptut = move_encode(source, target, piece, promoted, flag);
 
-    char move_temp[5];
-    move_to_str(ouptut, move_temp);
-
-    return ouptut;
+    return move_encode(source, target, promoted, MVF_Quiet);
 }
 
 bool move_make(Board *main, Move move, MoveType move_flag) {
@@ -73,18 +78,10 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
     // Clone board and make current move on main board, if current
     // move is illegal restore the board to this clone
     Board copy = *main;
+    Piece piece = pos_get_piece(main->pos, move.source);
 
-    // Decode all of the information from the move
-    // Sq source = move_get_source(move);
-    // Sq target = move_get_target(move);
-    // Piece piece = move_get_piece(move);
-    // bool is_capture = move_is_capture(move);
-    // bool is_two_square_push = move_is_two_square_push(move);
-    // bool is_enpassant = move_is_enpassant(move);
-    // bool is_castling = move_is_castling(move);
-    // Move piece from source sq to target sq
-    pop_bit(main->pos.piece[move.piece], move.source);
-    set_bit(main->pos.piece[move.piece], move.target);
+    pop_bit(main->pos.piece[piece], move.source);
+    set_bit(main->pos.piece[piece], move.target);
 
     // If move is capture, remove the piece from the opponent's bitboard
     if (move.flag == MVF_Capture) {
@@ -100,9 +97,12 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
     }
 
     // If move is promotion, change the pawn to the desired piece
-    if (move.promoted != P_NONE) {
-        pop_bit(main->pos.piece[move.piece], move.target);
-        set_bit(main->pos.piece[move.promoted], move.target);
+    if (move.promoted != PT_NONE) {
+        Piece prom_piece = TO_PIECE(
+            (move.target & RANK_MASK[RANK_8]), move.promoted);
+
+        pop_bit(main->pos.piece[piece], move.target);
+        set_bit(main->pos.piece[prom_piece], move.target);
     }
 
     // Unlike other captures, make sure to remove the "enpassant'd" pawn from the enemy bitboard

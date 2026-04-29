@@ -10,7 +10,7 @@ int MATERIAL_SCORE[12] = {
 int evaluate(Board *board) {
     int score = 0;
 
-    uint64_t bb;
+    Bitboard bb;
     Sq square;
 
     for (Piece piece = P_LP; piece < P_COUNT; piece++) {

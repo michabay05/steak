@@ -1,5 +1,6 @@
 #include "move_gen.h"
 #include "bitboard.h"
+#include "defs.h"
 #include "precalculate.h"
 
 
@@ -8,34 +9,34 @@ void movelist_add(MoveList *ml, Move move) {
     ml->list[ml->count++] = move;
 }
 
-int movelist_search(MoveList ml, Sq source, Sq target, Piece promoted) {
+int movelist_search(MoveList ml, Sq source, Sq target, PieceType promoted) {
     // The minimum amount of information required to determine if two moves are the same are the
     // following: source, target, and promoted. The rest can be anything. The three can uniquely
     // describe a move.
-    Move mv_target = move_encode(source, target, P_LP, promoted, MVF_Quiet);
-    for (int i = 0; i < ml.count; i++) {
-        Move mv = ml.list[i];
-        if (move_eq(mv_target, mv)) return i;
-    }
+    Move mv_target = move_encode(source, target, promoted, MVF_Quiet);
+    for (int i = 0; i < ml.count; i++)
+        if (move_eq(mv_target, ml.list[i])) return i;
+
     return -1;
 }
 
-#if 0
+#if 1
 void movelist_print_list(MoveList ml) {
-    printf("    Source   |   Target  |  Piece  |  Promoted  |  Capture  |  Two "
+    printf("    Source   |   Target  |  Promoted  |  Capture  |  Two "
            "Square Push  |  Enpassant  |  Castling\n");
     printf("  "
            "---------------------------------------------------------------------"
-           "--------------------------------------\n");
+           "--------------------------\n");
     for (int i = 0; i < ml.count; i++) {
-        printf("       %s    |    %s     |    %c    |     %c      |     %d     |   "
+        Move mv = ml.list[i];
+        printf("       %s    |    %s     |     %c      |     %d     |   "
                "      %d         |      %d      |     %d\n",
-               str_coords[ml.list[i].source], str_coords[ml.list[i].target],
-               piece_char[ml.list[i].piece], piece_char[ml.list[i].promoted],
-               ml.list[i].flag == MVF_Capture,
-               ml.list[i].flag == MVF_TwoSquarePush,
-               ml.list[i].flag == MVF_Enpassant,
-               ml.list[i].flag == MVF_Castling);
+            str_coords[mv.source], str_coords[mv.target],
+            piece_char[TO_PIECE(C_BLACK, mv.promoted)],
+            mv.flag == MVF_Capture,
+            mv.flag == MVF_TwoSquarePush,
+            mv.flag == MVF_Enpassant,
+            mv.flag == MVF_Castling);
     }
     printf("\n    Total number of moves: %d\n", ml.count);
 }
@@ -70,23 +71,23 @@ static void movelist_gen_pawn(MoveList *ml, Board *b) {
             if (in_promotion_rank(pawn, source)
                 && in_enemy_back_rank(pawn, target)) {
                 // Quiet Promotion moves
-                movelist_add(ml, move_encode(source, target, pawn,
-                    (b->state.side == C_WHITE ? P_LQ : P_DQ), MVF_Quiet));
-                movelist_add(ml, move_encode(source, target, pawn,
-                    (b->state.side == C_WHITE ? P_LR : P_DR), MVF_Quiet));
-                movelist_add(ml, move_encode(source, target, pawn,
-                    (b->state.side == C_WHITE ? P_LB : P_DB), MVF_Quiet));
-                movelist_add(ml, move_encode(source, target, pawn,
-                    (b->state.side == C_WHITE ? P_LN : P_DN), MVF_Quiet));
+                movelist_add(ml, move_encode(source, target,
+                    PT_QUEEN, MVF_Quiet));
+                movelist_add(ml, move_encode(source, target,
+                    PT_ROOK, MVF_Quiet));
+                movelist_add(ml, move_encode(source, target,
+                    PT_BISHOP, MVF_Quiet));
+                movelist_add(ml, move_encode(source, target,
+                    PT_KNIGHT, MVF_Quiet));
             } else {
                 // Quiet moves
                 movelist_add(ml, move_encode(
-                    source, target, pawn, P_NONE, MVF_Quiet));
+                    source, target, PT_NONE, MVF_Quiet));
 
                 if (in_starting_rank(pawn, source)
                     && !get_bit(b->pos.all_units, target + direction))
                     movelist_add(ml, move_encode(source, target + direction,
-                        pawn, P_NONE, MVF_TwoSquarePush));
+                        PT_NONE, MVF_TwoSquarePush));
             }
         }
 
@@ -97,18 +98,18 @@ static void movelist_gen_pawn(MoveList *ml, Board *b) {
             // Capture move
             if (in_promotion_rank(pawn, source)
                 && in_enemy_back_rank(pawn, attack_target)) {
-                movelist_add(ml, move_encode(source, attack_target, pawn,
-                    (b->state.side == C_WHITE ? P_LQ : P_DQ), MVF_Capture));
-                movelist_add(ml, move_encode(source, attack_target, pawn,
-                    (b->state.side == C_WHITE ? P_LR : P_DR), MVF_Capture));
-                movelist_add(ml, move_encode(source, attack_target, pawn,
-                    (b->state.side == C_WHITE ? P_LB : P_DB), MVF_Capture));
-                movelist_add(ml, move_encode(source, attack_target, pawn,
-                    (b->state.side == C_WHITE ? P_LN : P_DN), MVF_Capture));
+                movelist_add(ml, move_encode(source, attack_target,
+                    PT_QUEEN, MVF_Capture));
+                movelist_add(ml, move_encode(source, attack_target,
+                    PT_ROOK, MVF_Capture));
+                movelist_add(ml, move_encode(source, attack_target,
+                    PT_BISHOP, MVF_Capture));
+                movelist_add(ml, move_encode(source, attack_target,
+                    PT_KNIGHT, MVF_Capture));
             } else
                 movelist_add(ml, move_encode(source, attack_target,
-                    pawn, P_NONE, MVF_Capture));
-            // Remove 'source' bit
+                    PT_NONE, MVF_Capture));
+            // Remove attack 'source' bit
             pop_bit(attack_copy, attack_target);
         }
         // Generate enpassant capture
@@ -118,7 +119,7 @@ static void movelist_gen_pawn(MoveList *ml, Board *b) {
             if (enpassCapture) {
                 int enpassTarget = bb_lsb_index(enpassCapture);
                 movelist_add(ml, move_encode(
-                    source, enpassTarget, pawn, P_NONE, MVF_Enpassant));
+                    source, enpassTarget, PT_NONE, MVF_Enpassant));
             }
         }
         // Remove bits
@@ -179,9 +180,11 @@ static void movelist_gen_qrnbk(MoveList *ml, Board *b, PieceType pt) {
         while (attack_copy) {
             target = bb_lsb_index(attack_copy);
             if (get_bit(b->pos.units[b->state.side == C_WHITE ? C_BLACK : C_WHITE], target))
-                movelist_add(ml, move_encode(source, target, piece, P_NONE, MVF_Capture));
+                movelist_add(ml,
+                    move_encode(source, target, PT_NONE, MVF_Capture));
             else
-                movelist_add(ml, move_encode(source, target, piece, P_NONE, MVF_Quiet));
+                movelist_add(ml,
+                    move_encode(source, target, PT_NONE, MVF_Quiet));
             pop_bit(attack_copy, target);
         }
         pop_bit(bitboard_copy, source);
@@ -195,7 +198,8 @@ static void movelist_gen_white_castling(MoveList *ml, Board *b) {
         if (!get_bit(b->pos.all_units, SQ_F1) && !get_bit(b->pos.all_units, SQ_G1)) {
             // Is e1 or f1 attacked by a black piece?
             if (!board_is_sq_attacked(b, SQ_E1, C_BLACK) && !board_is_sq_attacked(b, SQ_F1, C_BLACK))
-                movelist_add(ml, move_encode(SQ_E1, SQ_G1, P_LK, P_NONE, MVF_Castling));
+                movelist_add(ml,
+                    move_encode(SQ_E1, SQ_G1, PT_NONE, MVF_Castling));
         }
     }
     // Queenside castling
@@ -205,7 +209,8 @@ static void movelist_gen_white_castling(MoveList *ml, Board *b) {
             !get_bit(b->pos.all_units, SQ_D1)) {
             // Is d1 or e1 attacked by a black piece?
             if (!board_is_sq_attacked(b, SQ_D1, C_BLACK) && !board_is_sq_attacked(b, SQ_E1, C_BLACK))
-                movelist_add(ml, move_encode(SQ_E1, SQ_C1, P_LK, P_NONE, MVF_Castling));
+                movelist_add(ml,
+                    move_encode(SQ_E1, SQ_C1, PT_NONE, MVF_Castling));
         }
     }
 }
@@ -217,7 +222,8 @@ static void movelist_gen_black_castling(MoveList *ml, Board *b) {
         if (!get_bit(b->pos.all_units, SQ_F8) && !get_bit(b->pos.all_units, SQ_G8)) {
             // Is e8 or f8 attacked by a white piece?
             if (!board_is_sq_attacked(b, SQ_E8, C_WHITE) && !board_is_sq_attacked(b, SQ_F8, C_WHITE))
-                movelist_add(ml, move_encode(SQ_E8, SQ_G8, P_DK, P_NONE, MVF_Castling));
+                movelist_add(ml,
+                    move_encode(SQ_E8, SQ_G8, PT_NONE, MVF_Castling));
         }
     }
     // Queenside castling
@@ -227,7 +233,8 @@ static void movelist_gen_black_castling(MoveList *ml, Board *b) {
             !get_bit(b->pos.all_units, SQ_D8)) {
             // Is d8 or e8 attacked by a white piece?
             if (!board_is_sq_attacked(b, SQ_D8, C_WHITE) && !board_is_sq_attacked(b, SQ_E8, C_WHITE))
-                movelist_add(ml, move_encode(SQ_E8, SQ_C8, P_DK, P_NONE, MVF_Castling));
+                movelist_add(ml,
+                    move_encode(SQ_E8, SQ_C8, PT_NONE, MVF_Castling));
         }
     }
 }
@@ -243,12 +250,12 @@ static void movelist_gen_king(MoveList *ml, Board *b) {
 
 void movelist_generate(MoveList *ml, Board *b, Piece p) {
     switch (COLORLESS(p)) {
-        case PT_PAWN: movelist_gen_pawn(ml, b); break;
+        case PT_PAWN  : movelist_gen_pawn(ml, b); break;
         case PT_KNIGHT: movelist_gen_qrnbk(ml, b, PT_KNIGHT); break;
         case PT_BISHOP: movelist_gen_qrnbk(ml, b, PT_BISHOP); break;
         case PT_ROOK  : movelist_gen_qrnbk(ml, b, PT_ROOK); break;
-        case PT_QUEEN: movelist_gen_qrnbk(ml, b, PT_QUEEN); break;
-        case PT_KING: movelist_gen_king(ml, b); break;
+        case PT_QUEEN : movelist_gen_qrnbk(ml, b, PT_QUEEN); break;
+        case PT_KING  : movelist_gen_king(ml, b); break;
     }
 }
 
@@ -266,8 +273,9 @@ void movelist_legal(MoveList *ml, Board *b) {
     movelist_generate_all(&temp, b);
 
     *ml = (MoveList){0};
-    Board copy = *b;
+    Board copy;
     for (int i = 0; i < temp.count; i++) {
+        copy = *b;
         if (move_make(b, temp.list[i], AllMoves)) {
             ml->list[ml->count] = temp.list[i];
             ml->count++;
