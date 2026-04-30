@@ -99,7 +99,7 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
     // If move is promotion, change the pawn to the desired piece
     if (move.promoted != PT_NONE) {
         Piece prom_piece = TO_PIECE(
-            (move.target & RANK_MASK[RANK_8]), move.promoted);
+            (move.target & RANK_MASK[RANK_1]), move.promoted);
 
         pop_bit(main->pos.piece[piece], move.target);
         set_bit(main->pos.piece[prom_piece], move.target);

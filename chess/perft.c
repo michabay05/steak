@@ -109,7 +109,6 @@ int main(int argc, char **argv) {
     // FENInfo fen_info = parse_fen(argv[0]);
     FENInfo fen_info = parse_fen_cstr("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
     board_set_from_fen(&board, fen_info);
-    board_print(&board);
 
     // perft_test(&board, atoi(argv[1]));
     perft_test(&board, 5);

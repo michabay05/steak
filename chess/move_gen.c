@@ -49,8 +49,7 @@ static void movelist_gen_pawn(MoveList *ml, Board *b) {
 
     #define in_promotion_rank(p, sq) (p == P_LP ? (SQ_A7 <= sq && sq <= SQ_H7) : (SQ_A2 <= sq && sq <= SQ_H2))
 
-
-    Bitboard bitboard_copy, attack_copy;
+    Bitboard bb_copy, attack_copy;
     Piece pawn;
     Direction direction;
     Sq source, target;
@@ -63,9 +62,9 @@ static void movelist_gen_pawn(MoveList *ml, Board *b) {
         direction = DIR_SOUTH;
     }
 
-    bitboard_copy = b->pos.piece[pawn];
-    while (bitboard_copy) {
-        source = bb_lsb_index(bitboard_copy);
+    bb_copy = b->pos.piece[pawn];
+    while (bb_copy) {
+        source = bb_lsb_index(bb_copy);
         target = source + direction;
         if (!get_bit(b->pos.all_units, target)) {
             if (in_promotion_rank(pawn, source)
@@ -123,7 +122,7 @@ static void movelist_gen_pawn(MoveList *ml, Board *b) {
             }
         }
         // Remove bits
-        pop_bit(bitboard_copy, source);
+        pop_bit(bb_copy, source);
     }
 }
 
