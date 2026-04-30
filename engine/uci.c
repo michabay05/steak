@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #define NOB_IMPLEMENTATION
 #include "engine.h"
 
@@ -12,7 +13,7 @@ typedef struct {
 #define ENGINE_NAME "steak"
 #define ENGINE_VERSION "1.0"
 
-int sv_index(String_View haystack, String_View needle) {
+static int sv_index(String_View haystack, String_View needle) {
     if (haystack.count < needle.count) return -1;
 
     int n = haystack.count - needle.count;
@@ -73,6 +74,18 @@ void _parse_position(UCI_Info *info, String_View args) {
     }
 }
 
+void _parse_go(UCI_Info *info, String_View args) {
+    args = sv_trim(args);
+    String_View cmd = sv_chop_by_delim(&args, ' ');
+    cmd = sv_trim(cmd);
+
+    if (sv_eq(cmd, sv_from_cstr("depth"))) {
+        String_View val = sv_chop_by_delim(&args, ' ');
+        val = sv_trim(val);
+        search_position(&info->board, atoi(val.data));
+    }
+}
+
 void uci_parse(UCI_Info *info, String_View args) {
     args = sv_trim(args);
     String_View first = sv_chop_by_delim(&args, ' ');
@@ -92,6 +105,8 @@ void uci_parse(UCI_Info *info, String_View args) {
         board_print(&info->board);
     } else if (sv_eq(first, sv_from_cstr("position"))) {
         _parse_position(info, args);
+    } else if (sv_eq(first, sv_from_cstr("go"))) {
+        _parse_go(info, args);
     }
 }
 

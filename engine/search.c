@@ -63,11 +63,11 @@ struct {
     // target square causes the lower bound (aka. the alpha) to increase. Much
     // like the killer moves, these history moves are quiet moves that increase
     // the alpha (lower bound)
-    int16_t history_moves[12][64];
+    i16 history_moves[12][64];
 
     // NOTE: This PV node collection system was taken from TSCP (as stated by
     // maksimKorzh)
-    int pv_length[MAX_PLY];
+    u8 pv_length[MAX_PLY];
     Move pv_table[MAX_PLY][MAX_PLY];
 
     bool follow_pv, score_pv;
@@ -77,9 +77,7 @@ void enable_pv_scoring(MoveList *mvs) {
     S_INFO.follow_pv = false;
 
     for (int i = 0; i < mvs->count; i++) {
-        if (*(int32_t*)&S_INFO.pv_table[0][S_INFO.ply]
-            == *(int32_t*)&mvs->list[i])
-        {
+        if (move_eq(S_INFO.pv_table[0][S_INFO.ply], mvs->list[i])) {
             S_INFO.score_pv = true;
             S_INFO.follow_pv = true;
         }
@@ -99,7 +97,7 @@ int score_move(Board *board, Move mv) {
 
     if (S_INFO.score_pv) {
         // TODO: Implement move comparison
-        if (*(int32_t*)&S_INFO.pv_table[0][S_INFO.ply] == *(int32_t*)&mv) {
+        if (move_eq(S_INFO.pv_table[0][S_INFO.ply], mv)) {
             S_INFO.score_pv = false;
             return 20000;
         }
@@ -133,14 +131,10 @@ int score_move(Board *board, Move mv) {
 
         return MVV_LVA[piece][captured_piece] + 10000;
     } else {
-        if (*(int32_t*)&S_INFO.killer_moves[0][S_INFO.ply]
-            == *(int32_t*)&mv)
-        {
+        if (move_eq(S_INFO.killer_moves[0][S_INFO.ply], mv)) {
             // Score 1st killer move
             return 9000;
-        } else if (*(int32_t*)&S_INFO.killer_moves[1][S_INFO.ply]
-            == *(int32_t*)&mv)
-        {
+        } else if (move_eq(S_INFO.killer_moves[1][S_INFO.ply], mv)) {
             // Score 2nd killer move
             return 8000;
         } else {
@@ -191,7 +185,7 @@ int quiescence(Board *board, int alpha, int beta) {
     // PV node (move)
     if (eval > alpha) alpha = eval;
 
-    MoveList mvs;
+    MoveList mvs = {0};
     movelist_generate_all(&mvs, board);
     sort_moves(board, &mvs);
 
@@ -235,7 +229,7 @@ int quiescence(Board *board, int alpha, int beta) {
 // When starting the negamax function, alpha and beta are assumed to represent
 // the lowest and highest bounds for the score produced (under the fail-hard
 // framework. If score is less than alpha, then the associated root move is
-// ignored because the move associated with alpha is better. If a score is 
+// ignored because the move associated with alpha is better. If a score is
 // greater than beta, the associated root move is ignored because the opponent,
 // who is assumed to be a just as rational as us, would never allow us to go
 // do those sequence of moves yielding a score greater than beta. If a score
@@ -289,7 +283,7 @@ int negamax(Board *board, int alpha, int beta, int depth) {
     int legal_move_count = 0;
     // Number of moves searched in the move list
     int moves_searched = 0;
-    MoveList mvs;
+    MoveList mvs = {0};
     movelist_generate_all(&mvs, board);
     if (S_INFO.follow_pv) enable_pv_scoring(&mvs);
     sort_moves(board, &mvs);
@@ -313,7 +307,7 @@ int negamax(Board *board, int alpha, int beta, int depth) {
 
             // TODO: Research Chess Programming Wiki to find out if there are more conditions used to determine if it is ok to reduce
             bool ok_to_reduce = !in_check && mv.flag != MVF_Capture
-                && mv.promoted != P_NONE;
+                && mv.promoted != PT_NONE;
 
             if (moves_searched >= FULL_DEPTH_MOVES
                 && depth >= REDUCTION_LIMIT && ok_to_reduce)
@@ -355,8 +349,7 @@ int negamax(Board *board, int alpha, int beta, int depth) {
         // Fail-hard beta cutoff: node (move) fails high
         if (score >= beta) {
             if (mv.flag != MVF_Capture) {
-                S_INFO.killer_moves[1][S_INFO.ply] =
-                    S_INFO.killer_moves[0][S_INFO.ply];
+                S_INFO.killer_moves[1][S_INFO.ply] = S_INFO.killer_moves[0][S_INFO.ply];
                 S_INFO.killer_moves[0][S_INFO.ply] = mv;
             }
             return beta;
@@ -376,9 +369,7 @@ int negamax(Board *board, int alpha, int beta, int depth) {
             S_INFO.pv_table[S_INFO.ply][S_INFO.ply] = mv;
 
             // Copy move from deeper ply into a current ply's line
-            for (int next = S_INFO.ply + 1;
-                next < S_INFO.pv_length[S_INFO.ply + 1]; next += 1)
-            {
+            for (int next = S_INFO.ply + 1; next < S_INFO.pv_length[S_INFO.ply + 1]; next += 1) {
                 S_INFO.pv_table[S_INFO.ply][next] = S_INFO.pv_table[S_INFO.ply + 1][next];
             }
 
@@ -431,7 +422,7 @@ void search_position(Board *board, int depth) {
         int score = negamax(board, alpha, beta, curr_depth);
         if (score <= alpha || score >= beta) {
             alpha = -INFINITY;
-            beta = -INFINITY;
+            beta = INFINITY;
             continue;
         }
 
