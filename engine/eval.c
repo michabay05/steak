@@ -13,7 +13,7 @@ int evaluate(Board *board) {
     Bitboard bb;
     Sq square;
 
-    for (Piece piece = P_LP; piece < P_COUNT; piece++) {
+    for (Piece piece = P_LP; piece <= P_DK; piece++) {
         bb = board->pos.piece[piece];
         while (bb) {
             square = bb_lsb_index(bb);
@@ -27,11 +27,11 @@ int evaluate(Board *board) {
                 case P_LR: score += ROOK_PSQT[square]; break;
                 case P_LK: score += KING_PSQT[square]; break;
 
-                case P_DP: score += PAWN_PSQT[FLIP(square)]; break;
-                case P_DN: score += KNIGHT_PSQT[FLIP(square)]; break;
-                case P_DB: score += BISHOP_PSQT[FLIP(square)]; break;
-                case P_DR: score += ROOK_PSQT[FLIP(square)]; break;
-                case P_DK: score += KING_PSQT[FLIP(square)]; break;
+                case P_DP: score -= PAWN_PSQT[FLIP(square)]; break;
+                case P_DN: score -= KNIGHT_PSQT[FLIP(square)]; break;
+                case P_DB: score -= BISHOP_PSQT[FLIP(square)]; break;
+                case P_DR: score -= ROOK_PSQT[FLIP(square)]; break;
+                case P_DK: score -= KING_PSQT[FLIP(square)]; break;
 
                 case P_LQ:
                 case P_DQ: score += 0; break;

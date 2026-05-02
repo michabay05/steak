@@ -40,7 +40,6 @@ static const int MVV_LVA[12][12] = {
 	{100, 200, 300, 400, 500, 600,  100, 200, 300, 400, 500, 600}
 };
 
-#define MAX_PLY 64
 #define INFINITY 50000
 // Used in Late-Move Reductions (LMRs)
 #define FULL_DEPTH_MOVES 4
@@ -152,14 +151,11 @@ void sort_moves(Board *board, MoveList *mvs) {
         move_scores[count] = score_move(board, mvs->list[count]);
 
     // loop over current move within a move list
-    for (int current_move = 0; current_move < mvs->count; current_move++)
-    {
+    for (int current_move = 0; current_move < mvs->count; current_move++) {
         // loop over next move within a move list
-        for (int next_move = current_move + 1; next_move < mvs->count; next_move++)
-        {
+        for (int next_move = current_move + 1; next_move < mvs->count; next_move++) {
             // compare current and next move scores
-            if (move_scores[current_move] < move_scores[next_move])
-            {
+            if (move_scores[current_move] < move_scores[next_move]) {
                 // swap scores
                 int temp_score = move_scores[current_move];
                 move_scores[current_move] = move_scores[next_move];
@@ -174,7 +170,20 @@ void sort_moves(Board *board, MoveList *mvs) {
     }
 }
 
+static void _uci_checkup() {
+    int time_ms = nanos_since_unspecified_epoch() / (1000 * 1000);
+    if (U_INFO.timeset && time_ms > U_INFO.stoptime) {
+        U_INFO.stopped = true;
+    }
+
+    // TODO: read GUI input
+}
+
 int quiescence(Board *board, int alpha, int beta) {
+    if ((S_INFO.nodes & 2047) == 0) {
+        _uci_checkup();
+    }
+
     S_INFO.nodes++;
 
     int eval = evaluate(board);
@@ -204,6 +213,9 @@ int quiescence(Board *board, int alpha, int beta) {
 
         // Take move back
         *board = clone;
+
+        // If time is up, return quickly
+        if (U_INFO.stopped) return 0;
 
         // Fail-hard beta cutoff: node (move) fails high
         if (score >= beta) return beta;
@@ -237,7 +249,11 @@ int quiescence(Board *board, int alpha, int beta) {
 // considered to be the best. As a result, the lower bound (alpha) is updated
 // to be this score because any score less than this new alpha would be ignored.
 int negamax(Board *board, int alpha, int beta, int depth) {
-    bool found_pv = true;
+    if ((S_INFO.nodes & 2047) == 0) {
+        _uci_checkup();
+    }
+
+    // bool found_pv = true;
 
     S_INFO.pv_length[S_INFO.ply] = S_INFO.ply;
 
@@ -247,7 +263,12 @@ int negamax(Board *board, int alpha, int beta, int depth) {
     if (S_INFO.ply > MAX_PLY - 1) return evaluate(board);
     S_INFO.nodes++;
 
-    bool in_check = board_is_in_check(board);
+    // Check extension
+    bool in_check = board_is_sq_attacked(board,
+        bb_lsb_index(
+            board->pos.piece[board->state.side == C_WHITE ? P_LK : P_DK]),
+        board->state.side ^ 1
+    );
     if (in_check) depth++;
 
     // NOTE: Null Move Pruning
@@ -260,10 +281,8 @@ int negamax(Board *board, int alpha, int beta, int depth) {
         // Preserve board state
         Board clone = *board;
 
-        S_INFO.ply++;
-
         // Switch sides (essentially gifting the opponent an extra move)
-        board->state.side = board->state.side == C_WHITE ? C_BLACK : C_WHITE;
+        state_change_side(&board->state);
 
         // Reset enpassant square (b/c on the opponent's additional move we
         // don't want the opponent to make an enpassant capture...as it does
@@ -272,10 +291,11 @@ int negamax(Board *board, int alpha, int beta, int depth) {
 
         // Search moves with reduced depht to find beta cutoffs
         int score = -negamax(board, -beta, -beta + 1, depth - 1 - NULL_MOVE_REDUCTION);
-        S_INFO.ply--;
 
         // Take move back
         *board = clone;
+
+        if (U_INFO.stopped) return 0;
 
         if (score >= beta) return beta;
     }
@@ -307,7 +327,7 @@ int negamax(Board *board, int alpha, int beta, int depth) {
 
             // TODO: Research Chess Programming Wiki to find out if there are more conditions used to determine if it is ok to reduce
             bool ok_to_reduce = !in_check && mv.flag != MVF_Capture
-                && mv.promoted != PT_NONE;
+                && mv.promoted == PT_NONE;
 
             if (moves_searched >= FULL_DEPTH_MOVES
                 && depth >= REDUCTION_LIMIT && ok_to_reduce)
@@ -330,7 +350,7 @@ int negamax(Board *board, int alpha, int beta, int depth) {
                 // time with the full bandwidth. Although the recursive call is
                 // being called twice, the cons as a result of it pale in
                 // comparison to the savings offered by PVS
-                if (score > alpha && score < beta) {
+                if ((score > alpha) && (score < beta)) {
                     // Further aside: If score was in fact greater than the alpha
                     // value, then the assumption that this move was in the PV node
                     // no longer holds thus, the entire search should done all over
@@ -344,6 +364,9 @@ int negamax(Board *board, int alpha, int beta, int depth) {
 
         // Take move back
         *board = clone;
+
+        if (U_INFO.stopped) return 0;
+
         moves_searched++;
 
         // Fail-hard beta cutoff: node (move) fails high
@@ -363,7 +386,6 @@ int negamax(Board *board, int alpha, int beta, int depth) {
 
             // PV node (move)
             alpha = score;
-            found_pv = true;
 
             // Update PV move list
             S_INFO.pv_table[S_INFO.ply][S_INFO.ply] = mv;
@@ -399,6 +421,9 @@ int negamax(Board *board, int alpha, int beta, int depth) {
 }
 
 void search_position(Board *board, int depth) {
+    // Reset UCI "time's up flag"
+    U_INFO.stopped = false;
+
     // Reset helper data structures for a new search loop.
     S_INFO.nodes = 0;
     S_INFO.follow_pv = false;
@@ -417,6 +442,8 @@ void search_position(Board *board, int depth) {
     // or not. As it progresses deeper and deeper into the search tree, it
     // prints out updates about the number of nodes search, PV nodes, etc.
     for (int curr_depth = 1; curr_depth <= depth; curr_depth++) {
+        if (U_INFO.stopped) break;
+
         S_INFO.follow_pv = true;
 
         int score = negamax(board, alpha, beta, curr_depth);
@@ -427,18 +454,24 @@ void search_position(Board *board, int depth) {
         }
 
         // NOTE: Aspiration Window
-        // 'Aspiration Window' is an enhancement of iterative deepening. The core assumption behind it that the next search will produce a score similar to current score. Similar score is defined the current score plus or minus a certain window (in this case, 50 pts).
+        // 'Aspiration Window' is an enhancement of iterative deepening. The core assumption behind
+        // it that the next search will produce a score similar to current score. Similar score is
+        // defined the current score plus or minus a certain window (in this case, 50 pts).
         alpha = score - 50;
         beta  = score + 50;
 
-        printf("info score cp %d depth %d nodes %d pv",
-            score, curr_depth, S_INFO.nodes);
+        String_Builder sb = {0};
+        sb_appendf(&sb, "info score cp %d depth %d nodes %d time %lu pv",
+            score, curr_depth, S_INFO.nodes,
+            (nanos_since_unspecified_epoch() / (1000*1000)) - U_INFO.starttime
+        );
         // Print all moves in the PV line
         for (int i = 0; i < S_INFO.pv_length[0]; i++) {
             move_to_str(S_INFO.pv_table[0][i], buf);
-            printf(" %s", buf);
+            sb_appendf(&sb, " %s", buf);
         }
-        printf("\n");
+        sb_append_null(&sb);
+        printf("%s\n", sb.items);
     }
 
     move_to_str(S_INFO.pv_table[0][0], buf);

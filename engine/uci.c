@@ -4,10 +4,17 @@
 
 #define INPUT_BUFSZ 8*1024
 
-typedef struct {
-    bool quit;
-    Board board;
-} UCI_Info;
+UCI_Info U_INFO = {
+    .quit = false,
+    .movestogo = 30,
+    .movetime = -1,
+    .time = -1,
+    .inc = 0,
+    .starttime = 0,
+    .stoptime = 0,
+    .timeset = false,
+    .stopped = false,
+};
 
 #define DEFAULT_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 #define ENGINE_NAME "steak"
@@ -29,7 +36,7 @@ static int sv_index(String_View haystack, String_View needle) {
     return -1;
 }
 
-void _parse_position(UCI_Info *info, String_View args) {
+static void _uci_parse_position(String_View args) {
     args = sv_trim(args);
     String_View cmd = sv_chop_by_delim(&args, ' ');
     cmd = sv_trim(cmd);
@@ -50,7 +57,7 @@ void _parse_position(UCI_Info *info, String_View args) {
     if (fen_sv.count == 0) return;
 
     FENInfo fen_info = parse_fen_sv(fen_sv);
-    board_set_from_fen(&info->board, fen_info);
+    board_set_from_fen(&U_INFO.board, fen_info);
 
     if (moves_ind < 0) return;
 
@@ -61,7 +68,7 @@ void _parse_position(UCI_Info *info, String_View args) {
         Move parsed_move = move_parse_sv(msv);
 
         ml.count = 0;
-        movelist_legal(&ml, &info->board);
+        movelist_legal(&ml, &U_INFO.board);
 
         int ind = movelist_search(ml,
             parsed_move.source, parsed_move.target, parsed_move.promoted);
@@ -70,54 +77,97 @@ void _parse_position(UCI_Info *info, String_View args) {
             fprintf(stderr, "Stopping move sequence parsing\n");
             break;
         }
-        move_make(&info->board, ml.list[ind], AllMoves);
+        move_make(&U_INFO.board, ml.list[ind], AllMoves);
     }
 }
 
-void _parse_go(UCI_Info *info, String_View args) {
+// Example command:
+// - go depth 6 wtime 60000 btime 60000 winc 1000 binc 1000 movtime 1000 movestogo 40
+static void _uci_parse_go(String_View args) {
     args = sv_trim(args);
-    String_View cmd = sv_chop_by_delim(&args, ' ');
-    cmd = sv_trim(cmd);
+    U_INFO.depth = -1;
 
-    if (sv_eq(cmd, sv_from_cstr("depth"))) {
+    while (args.count > 0) {
+        String_View key = sv_chop_by_delim(&args, ' ');
         String_View val = sv_chop_by_delim(&args, ' ');
-        val = sv_trim(val);
-        search_position(&info->board, atoi(val.data));
+
+        if (key.count == 0 || val.count == 0) break;
+
+        int num = atoi(val.data);
+
+        if (sv_eq(key, sv_from_cstr("depth"))) {
+            U_INFO.depth = num;
+        } else if (sv_eq(key, sv_from_cstr("wtime"))
+            && U_INFO.board.state.side == C_WHITE)
+        {
+            U_INFO.time = num;
+        } else if (sv_eq(key, sv_from_cstr("btime"))
+            && U_INFO.board.state.side == C_BLACK)
+        {
+            U_INFO.time = num;
+        } else if (sv_eq(key, sv_from_cstr("winc"))
+            && U_INFO.board.state.side == C_WHITE)
+        {
+            U_INFO.inc = num;
+        } else if (sv_eq(key, sv_from_cstr("binc"))
+            && U_INFO.board.state.side == C_BLACK)
+        {
+            U_INFO.inc = num;
+        } else if (sv_eq(key, sv_from_cstr("movetime"))) {
+            U_INFO.movetime = num;
+        } else if (sv_eq(key, sv_from_cstr("movestogo"))) {
+            U_INFO.movestogo = num;
+        }
     }
+
+    if (U_INFO.movetime != -1) {
+        U_INFO.time = U_INFO.movetime;
+        U_INFO.movestogo = 1;
+    }
+
+    U_INFO.starttime = nanos_since_unspecified_epoch() / (1000 * 1000);
+
+    if (U_INFO.time != -1) {
+        U_INFO.timeset = true;
+        U_INFO.time /= U_INFO.movestogo;
+        U_INFO.time -= 50;
+        U_INFO.stoptime = U_INFO.starttime + U_INFO.time + U_INFO.inc;
+    }
+
+    if (U_INFO.depth == -1) U_INFO.depth = MAX_PLY;
+
+    search_position(&U_INFO.board, U_INFO.depth);
 }
 
-void uci_parse(UCI_Info *info, String_View args) {
+void uci_parse(String_View args) {
     args = sv_trim(args);
     String_View first = sv_chop_by_delim(&args, ' ');
     first = sv_trim(first);
 
     if (sv_eq(first, sv_from_cstr("quit"))) {
-        info->quit = true;
+        U_INFO.quit = true;
     } else if (sv_eq(first, sv_from_cstr("isready"))) {
         printf("readyok\n");
     } else if (sv_eq(first, sv_from_cstr("eval"))) {
-        printf("Eval: %+d cp\n", evaluate(&info->board));
+        printf("Eval: %+d cp\n", evaluate(&U_INFO.board));
     } else if (sv_eq(first, sv_from_cstr("uci"))) {
         printf("id name %s v%s\n", ENGINE_NAME, ENGINE_VERSION);
         printf("id author michabay05\n");
         printf("uciok\n");
-    } else if (sv_eq(first, sv_from_cstr("debug"))) {
-        board_print(&info->board);
+    } else if (sv_eq(first, sv_from_cstr("d"))) {
+        board_print(&U_INFO.board);
     } else if (sv_eq(first, sv_from_cstr("position"))) {
-        _parse_position(info, args);
+        _uci_parse_position(args);
     } else if (sv_eq(first, sv_from_cstr("go"))) {
-        _parse_go(info, args);
+        _uci_parse_go(args);
     }
 }
 
 int main(void) {
     attack_init();
     char buffer[INPUT_BUFSZ] = {0};
-    UCI_Info info = {
-        .quit = false,
-    };
 
-    while (!info.quit) {
+    while (!U_INFO.quit) {
         memset(buffer, 0, INPUT_BUFSZ);
         fflush(stdout);
 
@@ -125,7 +175,7 @@ int main(void) {
             fprintf(stderr, "Unable to get read input from stdin.\n");
             break;
         }
-        uci_parse(&info, sv_from_parts(buffer, strlen(buffer)));
+        uci_parse(sv_from_parts(buffer, strlen(buffer)));
     }
 
     return 0;
