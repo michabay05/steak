@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #define NOB_IMPLEMENTATION
+#include "nob.h"
 #include "engine.h"
 
 #define INPUT_BUFSZ 8*1024
@@ -156,6 +157,10 @@ void uci_parse(String_View args) {
         printf("uciok\n");
     } else if (sv_eq(first, sv_from_cstr("d"))) {
         board_print(&U_INFO.board);
+    } else if (sv_eq(first, sv_from_cstr("ucinewgame"))) {
+        // TODO: ucinewgame indicates the start of a new game. Find out what could be done upon this
+        // message being received. Maybe clearing the transposition table, in the future.
+        _uci_parse_position(sv_from_cstr("startpos"));
     } else if (sv_eq(first, sv_from_cstr("position"))) {
         _uci_parse_position(args);
     } else if (sv_eq(first, sv_from_cstr("go"))) {

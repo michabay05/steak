@@ -1,6 +1,0 @@
-#include "bitboard.c"
-#include "board.c"
-#include "fen.c"
-#include "move.c"
-#include "move_gen.c"
-#include "precalculate.c"

@@ -1,10 +1,8 @@
-#include "move.h"
 #include <stdio.h>
 
 #define NOB_IMPLEMENTATION
-#include "../nob.h"
-#include "precalculate.h"
-#include "move_gen.h"
+#include "chess_unity.h"
+#include "chess_unity.c"
 
 // leaf nodes (number of positions reached during the test of the move generator at a given depth)
 static u64 nodes = 0;
@@ -94,13 +92,13 @@ void perft_test(Board *board, int depth) {
 }
 
 int main(int argc, char **argv) {
-    // char *program = nob_shift_args(&argc, &argv);
-    // if (argc != 2) {
-    //     fprintf(stderr, "[ERROR] Expected 2 cmdline args\n");
-    //     fprintf(stderr, "[NOTE] Usage: %s <FEN> <depth>\n", program);
-    //     fprintf(stderr, "[WARN] Make sure that the fen string is single or double-quoted\n");
-    //     return 1;
-    // }
+    char *program = nob_shift_args(&argc, &argv);
+    if (argc != 2) {
+        fprintf(stderr, "[ERROR] Expected 2 cmdline args\n");
+        fprintf(stderr, "[NOTE] Usage: %s <FEN> <depth>\n", program);
+        fprintf(stderr, "[WARN] Make sure that the fen string is single or double-quoted\n");
+        return 1;
+    }
 
     attack_init();
 

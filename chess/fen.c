@@ -5,7 +5,7 @@ inline FENInfo parse_fen_cstr(const char *fen) {
 }
 
 FENInfo parse_fen_sv(String_View fen) {
-    int i = 0;
+    u32 i = 0;
     FENInfo info = {0};
     // Piece placements
     u8 rank = 7, file = 0;

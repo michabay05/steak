@@ -1,7 +1,0 @@
-#include "bitboard.h"
-#include "precalculate.h"
-#include "fen.h"
-#include "move.h"
-#include "move_gen.h"
-#include "defs.h"
-#include "board.h"
