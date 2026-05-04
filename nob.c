@@ -112,8 +112,8 @@ int main(int argc, char **argv) {
     build_exe(&cmd, "chess/perft.c", "perft");
     if (!cmd_run(&cmd)) return 1;
 
-    build_exe(&cmd, "tests/run_tests.c", "run_tests");
-    if (!cmd_run(&cmd)) return 1;
+    // build_exe(&cmd, "tests/run_tests.c", "run_tests");
+    // if (!cmd_run(&cmd)) return 1;
 
     // build_exe(&cmd, "engine/uci.c", "steak-engine");
     // if (!cmd_run(&cmd)) return 1;

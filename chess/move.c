@@ -78,17 +78,17 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
     // Clone board and make current move on main board, if current
     // move is illegal restore the board to this clone
     Board copy = *main;
-    Piece piece = pos_get_piece(main->pos, move.source);
+    Piece piece = board_get_piece(main, move.source);
 
-    pop_bit(main->pos.piece[piece], move.source);
-    set_bit(main->pos.piece[piece], move.target);
+    pop_bit(main->piece[piece], move.source);
+    set_bit(main->piece[piece], move.target);
 
     // If move is capture, remove the piece from the opponent's bitboard
     if (move.flag == MVF_Capture) {
-        for (Piece p = (main->state.side == C_WHITE ? P_DP : P_LP);
-                p <= (main->state.side == C_WHITE ? P_DK : P_LK); p++) {
-            if (get_bit(main->pos.piece[p], move.target)) {
-                pop_bit(main->pos.piece[p], move.target);
+        for (Piece p = (main->side == C_WHITE ? P_DP : P_LP);
+                p <= (main->side == C_WHITE ? P_DK : P_LK); p++) {
+            if (get_bit(main->piece[p], move.target)) {
+                pop_bit(main->piece[p], move.target);
                 // There's no need to keep looking for another piece because
                 // only one piece can be captured
                 break;
@@ -101,26 +101,26 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
         Piece prom_piece = TO_PIECE(
             (move.target & RANK_MASK[RANK_1]), move.promoted);
 
-        pop_bit(main->pos.piece[piece], move.target);
-        set_bit(main->pos.piece[prom_piece], move.target);
+        pop_bit(main->piece[piece], move.target);
+        set_bit(main->piece[prom_piece], move.target);
     }
 
     // Unlike other captures, make sure to remove the "enpassant'd" pawn from the enemy bitboard
     if (move.flag == MVF_Enpassant) {
         Piece pawn = P_DP;
         Direction dir = DIR_SOUTH;
-        if (main->state.side == C_BLACK) {
+        if (main->side == C_BLACK) {
             pawn = P_LP;
             dir = DIR_NORTH;
         }
-        pop_bit(main->pos.piece[pawn], move.target + dir);
+        pop_bit(main->piece[pawn], move.target + dir);
     }
     // Reset enpassant square, even if the current move was enpassant or not
     // because enpassant can only be played on the move after the two square pawn push
-    main->state.enpassant = SQ_NONE;
+    main->enpassant = SQ_NONE;
     if (move.flag == MVF_TwoSquarePush) {
-        main->state.enpassant = move.target
-            + ((main->state.side == C_WHITE) ? DIR_SOUTH : DIR_NORTH);
+        main->enpassant = move.target
+            + ((main->side == C_WHITE) ? DIR_SOUTH : DIR_NORTH);
     }
 
     // If move is castling, place the rook on the correct square
@@ -129,32 +129,31 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
         // Target = king's target square
         switch (move.target) {
         case SQ_G1:
-            pop_bit(main->pos.piece[P_LR], SQ_H1);
-            set_bit(main->pos.piece[P_LR], SQ_F1);
+            pop_bit(main->piece[P_LR], SQ_H1);
+            set_bit(main->piece[P_LR], SQ_F1);
             break;
         case SQ_C1:
-            pop_bit(main->pos.piece[P_LR], SQ_A1);
-            set_bit(main->pos.piece[P_LR], SQ_D1);
+            pop_bit(main->piece[P_LR], SQ_A1);
+            set_bit(main->piece[P_LR], SQ_D1);
             break;
         case SQ_G8:
-            pop_bit(main->pos.piece[P_DR], SQ_H8);
-            set_bit(main->pos.piece[P_DR], SQ_F8);
+            pop_bit(main->piece[P_DR], SQ_H8);
+            set_bit(main->piece[P_DR], SQ_F8);
             break;
         case SQ_C8:
-            pop_bit(main->pos.piece[P_DR], SQ_A8);
-            set_bit(main->pos.piece[P_DR], SQ_D8);
+            pop_bit(main->piece[P_DR], SQ_A8);
+            set_bit(main->piece[P_DR], SQ_D8);
             break;
         default:
             break;
         }
     }
-    main->state.castling &= castling_rights[move.source];
-    main->state.castling &= castling_rights[move.target];
+    main->castling &= castling_rights[move.source];
+    main->castling &= castling_rights[move.target];
     // Manually update the units bitboard because of the manual
     // manipulations of the piece bitboards
-    pos_update_units(&main->pos);
-
-    state_change_side(&main->state);
+    board_update_units(main);
+    board_change_side(main);
 
     // After the move is made, if the current move reveals on the check on the king
     // unmake the move by restoring the current board to the earlier clone
@@ -162,8 +161,8 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
         *main = copy;
         return false;
     } else {
-        if (!main->state.side)
-            main->state.full_moves++;
+        if (!main->side)
+            main->full_moves++;
         return true;
     }
 }

@@ -8,28 +8,21 @@ typedef struct {
     Bitboard piece[12];
     Bitboard units[2];
     Bitboard all_units;
-} Position;
 
-typedef struct {
     Color side;
     Sq enpassant;
     u16 half_moves;
     u16 full_moves;
     u8 castling;
-} State;
-
-typedef struct {
-    Position pos;
-    State state;
 } Board;
 
 extern const int castling_rights[64];
 
-void pos_add_piece(Position *pos, Piece piece, Sq sq);
-void pos_remove_piece(Position *pos, Piece piece, Sq sq);
-Piece pos_get_piece(Position pos, Sq sq);
-void pos_update_units(Position *pos);
-void state_change_side(State *state);
+void board_add_piece(Board *board, Piece piece, Sq sq);
+void board_remove_piece(Board *board, Piece piece, Sq sq);
+Piece board_get_piece(Board *board, Sq sq);
+void board_update_units(Board *board);
+void board_change_side(Board *board);
 void board_set_from_fen(Board *board, FENInfo fen);
 void board_print(Board *b);
 bool board_is_sq_attacked(Board *b, Sq sq, Color side);
