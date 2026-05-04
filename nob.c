@@ -7,9 +7,9 @@
 
 enum BuildMode {
     BM_DEBUG,
-    BM_RELEASE
-} MODE = BM_DEBUG;
-const char *BUILD_MODE_STR[] = { "DEBUG", "RELEASE" };
+    BM_RELEASE,
+} BUILD = BM_DEBUG;
+const char *MODE_STR[] = { "DEBUG", "RELEASE" };
 
 typedef struct {
     const char *root;
@@ -18,7 +18,6 @@ typedef struct {
 
 bool walk_chess_func(Nob_Walk_Entry entry) {
     if (entry.type != FILE_REGULAR) return true;
-
 
     SourceHeaders *sh = (SourceHeaders*)entry.data;
     String_View sv = sv_from_cstr(entry.path);
@@ -39,9 +38,7 @@ bool walk_chess_func(Nob_Walk_Entry entry) {
     return true;
 }
 
-static void prep_chess_unity(Cmd *cmd) {
-    const char *src_dir = "chess";
-
+static void prep_unity(Cmd *cmd, const char *src_dir) {
     // Update unity source and header files
     SourceHeaders sh = { .root = src_dir };
     walk_dir(sh.root, &walk_chess_func, .data = &sh);
@@ -83,7 +80,7 @@ void build_exe(Cmd *cmd, const char *input, const char *output) {
     cmd_append(cmd, C_COMP);
     cmd_append(cmd, "-Wall", "-Wextra", "-pedantic");
 
-    switch (MODE) {
+    switch (BUILD) {
         case BM_DEBUG  : cmd_append(cmd, "-ggdb"); break;
         case BM_RELEASE: cmd_append(cmd, "-O3"); break;
     }
@@ -100,19 +97,22 @@ int main(int argc, char **argv) {
     while (argc > 0) {
         const char *arg = shift_args(&argc, &argv);
         if (!strcmp(arg, "release")) {
-            MODE = BM_RELEASE;
+            BUILD = BM_RELEASE;
         } else if (!strcmp(arg, "debug")) {
-            MODE = BM_DEBUG;
+            BUILD = BM_DEBUG;
         }
     }
 
-    nob_log(INFO, "Build mode: %s", BUILD_MODE_STR[MODE]);
+    nob_log(INFO, "Build mode: %s", MODE_STR[BUILD]);
     nob_log(INFO, "Build output dir: "OUT_DIR"/");
     mkdir_if_not_exists(OUT_DIR);
     Cmd cmd = {0};
-    prep_chess_unity(&cmd);
+    prep_unity(&cmd, "chess");
 
     build_exe(&cmd, "chess/perft.c", "perft");
+    if (!cmd_run(&cmd)) return 1;
+
+    build_exe(&cmd, "tests/run_tests.c", "run_tests");
     if (!cmd_run(&cmd)) return 1;
 
     // build_exe(&cmd, "engine/uci.c", "steak-engine");
