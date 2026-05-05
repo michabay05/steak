@@ -73,7 +73,7 @@ static void prep_unity(Cmd *cmd, const char *src_dir) {
     sb_free(sb);
 }
 
-void build_exe(Cmd *cmd, const char *input, const char *output) {
+static bool build_exe(Cmd *cmd, const char *input, const char *output) {
     // Rewind cmd
     cmd->count = 0;
 
@@ -88,6 +88,8 @@ void build_exe(Cmd *cmd, const char *input, const char *output) {
     temp_reset();
     cmd_append(cmd, "-o", temp_sprintf(OUT_DIR"/%s", output));
     cmd_append(cmd, input);
+
+    return cmd_run(cmd);
 }
 
 int main(int argc, char **argv) {
@@ -109,11 +111,8 @@ int main(int argc, char **argv) {
     Cmd cmd = {0};
     prep_unity(&cmd, "chess");
 
-    build_exe(&cmd, "chess/perft.c", "perft");
-    if (!cmd_run(&cmd)) return 1;
-
-    // build_exe(&cmd, "tests/run_tests.c", "run_tests");
-    // if (!cmd_run(&cmd)) return 1;
+    if (!build_exe(&cmd, "chess/perft.c", "perft")) return 1;
+    if (!build_exe(&cmd, "tests/run_tests.c", "run_tests")) return 1;
 
     // build_exe(&cmd, "engine/uci.c", "steak-engine");
     // if (!cmd_run(&cmd)) return 1;

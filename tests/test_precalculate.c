@@ -3,18 +3,6 @@
 #include "../chess/chess_unity.h"
 #include "test.h"
 
-#define make_bb(...) make_bb_opt(sizeof((Sq[]){__VA_ARGS__}) / sizeof(Sq), __VA_ARGS__)
-Bitboard make_bb_opt(size_t n, ...) {
-    va_list args;
-    va_start(args, n);
-
-    Bitboard out = 0ULL;
-    for (u32 i = 0; i < n; i++) set_bit(out, va_arg(args, int));
-
-    va_end(args);
-    return out;
-}
-
 static void test_attack_pawn(void) {
     struct {
         Color color;

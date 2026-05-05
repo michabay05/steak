@@ -13,6 +13,17 @@ const Bitboard FILE_MASK[8] = {
     0x4040404040404040, 0x8080808080808080
 };
 
+Bitboard make_bb_opt(size_t n, ...) {
+    va_list args;
+    va_start(args, n);
+
+    Bitboard out = 0ULL;
+    for (u32 i = 0; i < n; i++) set_bit(out, va_arg(args, int));
+
+    va_end(args);
+    return out;
+}
+
 void bb_print(Bitboard bb) {
     printf("\n");
     for (int r = 0; r < 8; r++) {
