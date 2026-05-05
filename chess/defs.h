@@ -74,13 +74,6 @@ static_assert(PT_COUNT == 6, "There needs to be 6 piece types.");
 typedef ENUM_DEF(u8, Color) { C_WHITE, C_BLACK, C_COUNT };
 static_assert(C_COUNT == 2, "There needs to be 2 colors.");
 
-// typedef ENUM_DEF(u8, Piece) {
-//     P_LP, P_LN, P_LB, P_LR, P_LQ, P_LK,
-//     P_DP, P_DN, P_DB, P_DR, P_DQ, P_DK,
-//     P_COUNT, P_NONE
-// };
-// static_assert(P_COUNT == 12, "There needs to be 12 pieces.");
-
 typedef struct {
     Color color : 1;
     PieceType type : 3;
