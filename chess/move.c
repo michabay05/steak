@@ -27,7 +27,7 @@ void move_to_str(Move move, char *move_str) {
     move_str[3] = str_coords[move.target][1];
     // Promotion piece
     if (move.promoted != PT_NONE) {
-        move_str[4] = piece_char[TO_PIECE(C_BLACK, move.promoted)];
+        move_str[4] = piece_char[C_BLACK][move.promoted];
         move_str[5] = 0;
     } else {
         move_str[4] = 0;
@@ -80,15 +80,14 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
     Board copy = *main;
     Piece piece = board_get_piece(main, move.source);
 
-    pop_bit(main->piece[piece], move.source);
-    set_bit(main->piece[piece], move.target);
+    pop_bit(main->piece[piece.color][piece.type], move.source);
+    set_bit(main->piece[piece.color][piece.type], move.target);
 
     // If move is capture, remove the piece from the opponent's bitboard
     if (move.flag == MVF_Capture) {
-        for (Piece p = (main->side == C_WHITE ? P_DP : P_LP);
-                p <= (main->side == C_WHITE ? P_DK : P_LK); p++) {
-            if (get_bit(main->piece[p], move.target)) {
-                pop_bit(main->piece[p], move.target);
+        for (PieceType pt = PT_PAWN; pt <= PT_KING; pt++) {
+            if (get_bit(main->piece[piece.color ^ 1][pt], move.target)) {
+                pop_bit(main->piece[piece.color ^ 1][pt], move.target);
                 // There's no need to keep looking for another piece because
                 // only one piece can be captured
                 break;
@@ -98,11 +97,13 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
 
     // If move is promotion, change the pawn to the desired piece
     if (move.promoted != PT_NONE) {
-        Piece prom_piece = TO_PIECE(
-            (move.target & RANK_MASK[RANK_1]), move.promoted);
+        Piece prom_piece = {
+            .color = TO_BOOL(move.target & RANK_MASK[RANK_1]),
+            .type = move.promoted
+        };
 
-        pop_bit(main->piece[piece], move.target);
-        set_bit(main->piece[prom_piece], move.target);
+        pop_bit(main->piece[piece.color][piece.type], move.target);
+        set_bit(main->piece[prom_piece.color][prom_piece.type], move.target);
     }
 
     // Unlike other captures, make sure to remove the "enpassant'd" pawn from the enemy bitboard
@@ -113,7 +114,7 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
             pawn = P_LP;
             dir = DIR_NORTH;
         }
-        pop_bit(main->piece[pawn], move.target + dir);
+        pop_bit(main->piece[pawn.color][pawn.type], move.target + dir);
     }
     // Reset enpassant square, even if the current move was enpassant or not
     // because enpassant can only be played on the move after the two square pawn push
@@ -128,24 +129,24 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
     if (move.flag == MVF_Castling) {
         // Target = king's target square
         switch (move.target) {
-        case SQ_G1:
-            pop_bit(main->piece[P_LR], SQ_H1);
-            set_bit(main->piece[P_LR], SQ_F1);
-            break;
-        case SQ_C1:
-            pop_bit(main->piece[P_LR], SQ_A1);
-            set_bit(main->piece[P_LR], SQ_D1);
-            break;
-        case SQ_G8:
-            pop_bit(main->piece[P_DR], SQ_H8);
-            set_bit(main->piece[P_DR], SQ_F8);
-            break;
-        case SQ_C8:
-            pop_bit(main->piece[P_DR], SQ_A8);
-            set_bit(main->piece[P_DR], SQ_D8);
-            break;
-        default:
-            break;
+            case SQ_G1:
+                pop_bit(main->piece[C_WHITE][PT_ROOK], SQ_H1);
+                set_bit(main->piece[C_WHITE][PT_ROOK], SQ_F1);
+                break;
+            case SQ_C1:
+                pop_bit(main->piece[C_WHITE][PT_ROOK], SQ_A1);
+                set_bit(main->piece[C_WHITE][PT_ROOK], SQ_D1);
+                break;
+            case SQ_G8:
+                pop_bit(main->piece[C_BLACK][PT_ROOK], SQ_H8);
+                set_bit(main->piece[C_BLACK][PT_ROOK], SQ_F8);
+                break;
+            case SQ_C8:
+                pop_bit(main->piece[C_BLACK][PT_ROOK], SQ_A8);
+                set_bit(main->piece[C_BLACK][PT_ROOK], SQ_D8);
+                break;
+            default:
+                break;
         }
     }
     main->castling &= castling_rights[move.source];

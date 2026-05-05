@@ -19,7 +19,6 @@ typedef uint64_t u64;
 
 typedef u64 Bitboard;
 
-
 #define ENUM_DEF(e_type, e_name) e_type e_name; enum
 
 // clang-format off
@@ -50,7 +49,7 @@ typedef ENUM_DEF(u8, File) {
 static_assert(FILE_COUNT == 8, "There needs to be 8 files (columns).");
 
 extern const char *str_coords[66];
-extern const char piece_char[14];
+extern const char *piece_char[2];
 extern const Bitboard RANK_MASK[8];
 
 #define ROW(sq) (((Sq)sq) >> 3)
@@ -60,21 +59,11 @@ extern const Bitboard RANK_MASK[8];
 #define COLORLESS(piece) (((Piece)piece) % 6)
 #define SQCLR(r, f) (((int)(r + f + 1)) & 1)
 // Takes an integer value and converts it to 0 or 1
-#define TO_BOOL(x) (x != 0)
-// Provide: (c - Color) and (p - PieceType)
-#define TO_PIECE(c, p) (TO_BOOL(c) * PT_COUNT + p)
+#define TO_BOOL(x) ((x) != 0)
 
 #define set_bit(bitboard, square) ((bitboard) |= (1ULL << (square)))
 #define get_bit(bitboard, square) (((bitboard) & (1ULL << (square))) ? 1 : 0)
 #define pop_bit(bitboard, square) ((bitboard) &= ~(1ULL << (square)))
-
-/* Pieces */
-typedef ENUM_DEF(u8, Piece) {
-    P_LP, P_LN, P_LB, P_LR, P_LQ, P_LK,
-    P_DP, P_DN, P_DB, P_DR, P_DQ, P_DK,
-    P_COUNT, P_NONE
-};
-static_assert(P_COUNT == 12, "There needs to be 12 pieces.");
 
 typedef ENUM_DEF(u8, PieceType) {
     PT_PAWN, PT_KNIGHT, PT_BISHOP, PT_ROOK, PT_QUEEN, PT_KING,
@@ -84,6 +73,33 @@ static_assert(PT_COUNT == 6, "There needs to be 6 piece types.");
 
 typedef ENUM_DEF(u8, Color) { C_WHITE, C_BLACK, C_COUNT };
 static_assert(C_COUNT == 2, "There needs to be 2 colors.");
+
+// typedef ENUM_DEF(u8, Piece) {
+//     P_LP, P_LN, P_LB, P_LR, P_LQ, P_LK,
+//     P_DP, P_DN, P_DB, P_DR, P_DQ, P_DK,
+//     P_COUNT, P_NONE
+// };
+// static_assert(P_COUNT == 12, "There needs to be 12 pieces.");
+
+typedef struct {
+    Color color : 1;
+    PieceType type : 3;
+} Piece;
+
+#define P_LP ((Piece){.color = C_WHITE, .type = PT_PAWN})
+#define P_LN ((Piece){.color = C_WHITE, .type = PT_KNIGHT})
+#define P_LB ((Piece){.color = C_WHITE, .type = PT_BISHOP})
+#define P_LR ((Piece){.color = C_WHITE, .type = PT_ROOK})
+#define P_LQ ((Piece){.color = C_WHITE, .type = PT_QUEEN})
+#define P_LK ((Piece){.color = C_WHITE, .type = PT_KING})
+
+#define P_DP ((Piece){.color = C_BLACK, .type = PT_PAWN})
+#define P_DN ((Piece){.color = C_BLACK, .type = PT_KNIGHT})
+#define P_DB ((Piece){.color = C_BLACK, .type = PT_BISHOP})
+#define P_DR ((Piece){.color = C_BLACK, .type = PT_ROOK})
+#define P_DQ ((Piece){.color = C_BLACK, .type = PT_QUEEN})
+#define P_DK ((Piece){.color = C_BLACK, .type = PT_KING})
+#define P_NONE ((Piece){.color = C_BLACK, .type = PT_NONE})
 
 typedef ENUM_DEF(u8, CastlingRight) {
     CR_LK, CR_LQ, CR_DK, CR_DQ, CR_COUNT

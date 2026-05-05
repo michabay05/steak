@@ -91,21 +91,22 @@ void perft_test(Board *board, int depth) {
         (u64)((nanos_since_unspecified_epoch() - start) * 1e-6));
 }
 
-int main(int argc, char **argv) {
-    char *program = nob_shift_args(&argc, &argv);
-    if (argc != 2) {
-        fprintf(stderr, "[ERROR] Expected 2 cmdline args\n");
-        fprintf(stderr, "[NOTE] Usage: %s <FEN> <depth>\n", program);
-        fprintf(stderr, "[WARN] Make sure that the fen string is single or double-quoted\n");
-        return 1;
-    }
+int main(void) {
+    // char *program = shift_args(&argc, &argv);
+    // if (argc != 2) {
+    //     fprintf(stderr, "[ERROR] Expected 2 cmdline args\n");
+    //     fprintf(stderr, "[NOTE] Usage: %s <FEN> <depth>\n", program);
+    //     fprintf(stderr, "[WARN] Make sure that the fen string is single or double-quoted\n");
+    //     return 1;
+    // }
 
     attack_init();
 
     Board board = {0};
-    // FENInfo fen_info = parse_fen(argv[0]);
+    // FENInfo fen_info = parse_fen_cstr(argv[0]);
     FENInfo fen_info = parse_fen_cstr("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
     board_set_from_fen(&board, fen_info);
+    board_print(&board);
 
     // perft_test(&board, atoi(argv[1]));
     perft_test(&board, 5);

@@ -81,7 +81,7 @@ void build_exe(Cmd *cmd, const char *input, const char *output) {
     cmd_append(cmd, "-Wall", "-Wextra", "-pedantic");
 
     switch (BUILD) {
-        case BM_DEBUG  : cmd_append(cmd, "-ggdb"); break;
+        case BM_DEBUG  : cmd_append(cmd, "-g"); break;
         case BM_RELEASE: cmd_append(cmd, "-O3"); break;
     }
 

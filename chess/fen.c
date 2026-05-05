@@ -98,7 +98,8 @@ void fen_info_print(FENInfo *fen) {
     for (int r = 0; r < 8; r++) {
         printf("|");
         for (int f = 0; f < 8; f++) {
-            printf(" %2d |", fen->board[SQ(r, f)]);
+            Piece p = fen->board[SQ(r, f)];
+            printf(" %2d |", piece_char[p.color][p.type]);
         }
         printf("\n");
     }

@@ -15,9 +15,7 @@ const char *str_coords[66] = {
     "??", "none"
 };
 
-const char piece_char[14] = {
-    'P', 'N', 'B', 'R', 'Q', 'K', 'p', 'n', 'b', 'r', 'q', 'k', '?', ' '
-};
+const char *piece_char[2] = { "PNBRQK", "pnbrqk? " };
 
 const int castling_rights[64] = {
     13, 15, 15, 15, 12, 15, 15, 14,
@@ -32,45 +30,41 @@ const int castling_rights[64] = {
 // clang-format on
 
 void board_add_piece(Board *board, Piece piece, Sq sq) {
-    set_bit(board->piece[piece], sq);
+    set_bit(board->piece[piece.color][piece.type], sq);
     board_update_units(board);
 }
 
 void board_remove_piece(Board *board, Piece piece, Sq sq) {
-    pop_bit(board->piece[piece], sq);
+    pop_bit(board->piece[piece.color][piece.type], sq);
     board_update_units(board);
 }
 
 Piece board_get_piece(Board *board, Sq sq) {
-    for (Piece i = P_LP; i <= P_DK; i++) {
-        if (get_bit(board->piece[i], sq)) return i;
+    for (Color c = C_WHITE; c <= C_BLACK; c++) {
+        for (PieceType pt = PT_PAWN; pt <= PT_KING; pt++) {
+            if (get_bit(board->piece[c][pt], sq)) return (Piece){.color = c, .type = pt};
+        }
     }
     return P_NONE;
 }
 
 void board_update_units(Board *pos) {
     // Reset all the units bitboard to 0
-    pos->units[C_WHITE] = pos->piece[P_LP]
-        | pos->piece[P_LN]
-        | pos->piece[P_LB]
-        | pos->piece[P_LR]
-        | pos->piece[P_LQ]
-        | pos->piece[P_LK];
+    pos->units[C_WHITE] = pos->piece[C_WHITE][PT_PAWN]
+        | pos->piece[C_WHITE][PT_KNIGHT]
+        | pos->piece[C_WHITE][PT_BISHOP]
+        | pos->piece[C_WHITE][PT_ROOK]
+        | pos->piece[C_WHITE][PT_QUEEN]
+        | pos->piece[C_WHITE][PT_KING];
 
-    pos->units[C_BLACK]  = pos->piece[P_DP]
-        | pos->piece[P_DN]
-        | pos->piece[P_DB]
-        | pos->piece[P_DR]
-        | pos->piece[P_DQ]
-        | pos->piece[P_DK];
+    pos->units[C_BLACK] = pos->piece[C_BLACK][PT_PAWN]
+        | pos->piece[C_BLACK][PT_KNIGHT]
+        | pos->piece[C_BLACK][PT_BISHOP]
+        | pos->piece[C_BLACK][PT_ROOK]
+        | pos->piece[C_BLACK][PT_QUEEN]
+        | pos->piece[C_BLACK][PT_KING];
 
     pos->all_units = pos->units[C_WHITE] | pos->units[C_BLACK];
-
-    // for (int i = PT_PAWN; i <= PT_KING; i++) {
-    //     pos->units[C_WHITE] |= pos->piece[i];
-    //     pos->units[C_BLACK] |= pos->piece[6 + i];
-    // }
-    // pos->all_units = pos->units[C_WHITE] | pos->units[C_BLACK];
 }
 
 void board_change_side(Board *board) { board->side ^= 1; }
@@ -79,7 +73,7 @@ void board_set_from_fen(Board *board, FENInfo fen) {
     *board = (Board){0};
     // Set pieces
     for (int i = 0; i < 64; i++) {
-        if (fen.board[i] == P_NONE) continue;
+        if (fen.board[i].type == PT_NONE) continue;
         board_add_piece(board, fen.board[i], i);
     }
     board->side = fen.side;
@@ -107,7 +101,8 @@ void board_print(Board *b) {
     for (int r = 0; r < 8; r++) {
         printf("  %d |", 8 - r);
         for (int f = 0; f < 8; f++) {
-            printf(" %c |", piece_char[board_get_piece(b, SQ(7 - r, f))]);
+            Piece p = board_get_piece(b, SQ(7 - r, f));
+            printf(" %c |", piece_char[p.color][p.type]);
         }
         printf("\n    +---+---+---+---+---+---+---+---+\n");
     }
@@ -121,25 +116,25 @@ void board_print(Board *b) {
 
 inline bool board_is_sq_attacked(Board *b, Sq sq, Color side) {
     // Attacked by white pawns
-    if ((side == C_WHITE) && (pawn_attacks[C_BLACK][sq] & b->piece[P_LP]))
+    if ((side == C_WHITE) && (pawn_attacks[C_BLACK][sq] & b->piece[C_WHITE][PT_PAWN]))
         return true;
     // Attacked by black pawns
-    if ((side == C_BLACK) && (pawn_attacks[C_WHITE][sq] & b->piece[P_DP]))
+    if ((side == C_BLACK) && (pawn_attacks[C_WHITE][sq] & b->piece[C_BLACK][PT_PAWN]))
         return true;
     // Attacked by knights
-    if (knight_attacks[sq] & b->piece[side == C_WHITE ? P_LN : P_DN])
+    if (knight_attacks[sq] & b->piece[side][PT_KNIGHT])
         return true;
     // Attacked by bishops
-    if (get_bishop_attack(sq, b->all_units) & b->piece[side == C_WHITE ? P_LB : P_DB])
+    if (get_bishop_attack(sq, b->all_units) & b->piece[side][PT_BISHOP])
         return true;
     // Attacked by rooks
-    if (get_rook_attack(sq, b->all_units) & b->piece[side == C_WHITE ? P_LR : P_DR])
+    if (get_rook_attack(sq, b->all_units) & b->piece[side][PT_ROOK])
         return true;
     // Attacked by queens
-    if (get_queen_attack(sq, b->all_units) & b->piece[side == C_WHITE ? P_LQ : P_DQ])
+    if (get_queen_attack(sq, b->all_units) & b->piece[side][PT_QUEEN])
         return true;
     // Attacked by kings
-    if (king_attacks[sq] & b->piece[side == C_WHITE ? P_LK : P_DK])
+    if (king_attacks[sq] & b->piece[side][PT_KING])
         return true;
 
     // If all of the above cases fail, return false
@@ -149,7 +144,7 @@ inline bool board_is_sq_attacked(Board *b, Sq sq, Color side) {
 inline bool board_is_in_check(Board *b) {
     return board_is_sq_attacked(
         b,
-        bb_lsb_index(b->piece[b->side == C_WHITE ? P_DK : P_LK]),
+        bb_lsb_index(b->piece[b->side ^ 1][PT_KING]),
         b->side
     );
 }

@@ -5,7 +5,7 @@
 #include "fen.h"
 
 typedef struct {
-    Bitboard piece[12];
+    Bitboard piece[2][6];
     Bitboard units[2];
     Bitboard all_units;
 

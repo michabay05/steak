@@ -20,7 +20,7 @@ int movelist_search(MoveList ml, Sq source, Sq target, PieceType promoted) {
     return -1;
 }
 
-#if 1
+#if 0
 void movelist_print_list(MoveList ml) {
     printf("    Source   |   Target  |  Promoted  |  Capture  |  Two "
            "Square Push  |  Enpassant  |  Castling\n");
@@ -32,7 +32,7 @@ void movelist_print_list(MoveList ml) {
         printf("       %s    |    %s     |     %c      |     %d     |   "
                "      %d         |      %d      |     %d\n",
             str_coords[mv.source], str_coords[mv.target],
-            piece_char[TO_PIECE(C_BLACK, mv.promoted)],
+            piece_char[C_BLACK][mv.promoted],
             mv.flag == MVF_Capture,
             mv.flag == MVF_TwoSquarePush,
             mv.flag == MVF_Enpassant,
@@ -43,32 +43,24 @@ void movelist_print_list(MoveList ml) {
 #endif
 
 static void movelist_gen_pawn(MoveList *ml, Board *b) {
-    #define in_enemy_back_rank(p, sq) (p == P_LP ? (SQ_A8 <= sq && sq <= SQ_H8) : (SQ_A1 <= sq && sq <= SQ_H1))
+    #define in_enemy_back_rank(c, sq) (c == C_WHITE ? (SQ_A8 <= sq && sq <= SQ_H8) : (SQ_A1 <= sq && sq <= SQ_H1))
 
-    #define in_starting_rank(p, sq) (p == P_LP ? (SQ_A2 <= sq && sq <= SQ_H2) : (SQ_A7 <= sq && sq <= SQ_H7))
+    #define in_starting_rank(c, sq) (c == C_WHITE ? (SQ_A2 <= sq && sq <= SQ_H2) : (SQ_A7 <= sq && sq <= SQ_H7))
 
-    #define in_promotion_rank(p, sq) (p == P_LP ? (SQ_A7 <= sq && sq <= SQ_H7) : (SQ_A2 <= sq && sq <= SQ_H2))
+    #define in_promotion_rank(c, sq) (c == C_WHITE ? (SQ_A7 <= sq && sq <= SQ_H7) : (SQ_A2 <= sq && sq <= SQ_H2))
 
     Bitboard bb_copy, attack_copy;
-    Piece pawn;
-    Direction direction;
     Sq source, target;
-    if (b->side == C_WHITE) {
-        pawn = P_LP;
-        direction = DIR_NORTH;
-    }
-    else {
-        pawn = P_DP;
-        direction = DIR_SOUTH;
-    }
+    Direction direction = b->side == C_WHITE ? DIR_NORTH : DIR_SOUTH;
+    Color pcolor = b->side;
 
-    bb_copy = b->piece[pawn];
+    bb_copy = b->piece[pcolor][PT_PAWN];
     while (bb_copy) {
         source = bb_lsb_index(bb_copy);
         target = source + direction;
         if (!get_bit(b->all_units, target)) {
-            if (in_promotion_rank(pawn, source)
-                && in_enemy_back_rank(pawn, target)) {
+            if (in_promotion_rank(pcolor, source)
+                && in_enemy_back_rank(pcolor, target)) {
                 // Quiet Promotion moves
                 movelist_add(ml, move_encode(source, target,
                     PT_QUEEN, MVF_Quiet));
@@ -83,7 +75,7 @@ static void movelist_gen_pawn(MoveList *ml, Board *b) {
                 movelist_add(ml, move_encode(
                     source, target, PT_NONE, MVF_Quiet));
 
-                if (in_starting_rank(pawn, source)
+                if (in_starting_rank(pcolor, source)
                     && !get_bit(b->all_units, target + direction))
                     movelist_add(ml, move_encode(source, target + direction,
                         PT_NONE, MVF_TwoSquarePush));
@@ -95,8 +87,8 @@ static void movelist_gen_pawn(MoveList *ml, Board *b) {
         while (attack_copy) {
             Sq attack_target = bb_lsb_index(attack_copy);
             // Capture move
-            if (in_promotion_rank(pawn, source)
-                && in_enemy_back_rank(pawn, attack_target)) {
+            if (in_promotion_rank(pcolor, source)
+                && in_enemy_back_rank(pcolor, attack_target)) {
                 movelist_add(ml, move_encode(source, attack_target,
                     PT_QUEEN, MVF_Capture));
                 movelist_add(ml, move_encode(source, attack_target,
@@ -127,30 +119,9 @@ static void movelist_gen_pawn(MoveList *ml, Board *b) {
 }
 
 static void movelist_gen_qrnbk(MoveList *ml, Board *b, PieceType pt) {
-    Piece piece;
-    switch (pt) {
-        case PT_KNIGHT:
-            piece = b->side == C_WHITE ? P_LN : P_DN;
-            break;
-        case PT_BISHOP:
-            piece = b->side == C_WHITE ? P_LB : P_DB;
-            break;
-        case PT_ROOK:
-            piece = b->side == C_WHITE ? P_LR : P_DR;
-            break;
-        case PT_QUEEN:
-            piece = b->side == C_WHITE ? P_LQ : P_DQ;
-            break;
-        case PT_KING:
-            piece = b->side == C_WHITE ? P_LK : P_DK;
-            break;
-
-        case PT_PAWN:
-        default: UNREACHABLE("Pawn or unknown piece type");
-    }
-
+    Color pcolor = b->side;
     Sq source, target;
-    Bitboard bitboard_copy = b->piece[piece], attack_copy;
+    Bitboard bitboard_copy = b->piece[pcolor][pt], attack_copy;
     while (bitboard_copy) {
         source = bb_lsb_index(bitboard_copy);
 
@@ -247,8 +218,8 @@ static void movelist_gen_king(MoveList *ml, Board *b) {
     else movelist_gen_black_castling(ml, b);
 }
 
-void movelist_generate(MoveList *ml, Board *b, Piece p) {
-    switch (COLORLESS(p)) {
+void movelist_generate(MoveList *ml, Board *b, PieceType pt) {
+    switch (pt) {
         case PT_PAWN  : movelist_gen_pawn(ml, b); break;
         case PT_KNIGHT: movelist_gen_qrnbk(ml, b, PT_KNIGHT); break;
         case PT_BISHOP: movelist_gen_qrnbk(ml, b, PT_BISHOP); break;
