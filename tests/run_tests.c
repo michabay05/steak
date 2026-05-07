@@ -3,6 +3,7 @@
 
 #include "./test_precalculate.c"
 #include "./test_fen.c"
+#include "./test_moves.c"
 
 typedef struct {
     int succ, fail;
@@ -14,6 +15,7 @@ int main(void) {
     TestResult tr = {0};
     test_precalculate_main();
     test_fen_main();
+    test_moves_main();
 
     return 0;
 }
