@@ -23,6 +23,8 @@
         King   100    200    300    400    500    600
 */
 
+#define PIECE_IND(piece) ((piece.color)*6 + piece.type)
+
 // MVV LVA [attacker][victim]
 static const int MVV_LVA[12][12] = {
     {105, 205, 305, 405, 505, 605,  105, 205, 305, 405, 505, 605},
@@ -102,33 +104,21 @@ int score_move(Board *board, Move mv) {
         }
     }
 
-    Piece piece = pos_get_piece(board->pos, mv.source);
+    Piece piece = board_get_piece(board, mv.source);
     if (mv.flag == MVF_Capture) {
-        Piece captured_piece = P_LP;
-
-        // pick up bitboard piece index ranges depending on side
-        Piece start, end;
-
-        // pick up side to move
-        if (board->state.side == C_WHITE) {
-            start = P_DP;
-            end = P_DK;
-        } else {
-            start = P_LP;
-            end = P_LK;
-        }
+        Piece captured_piece;
 
         // loop over bitboards opposite to the current side to move
-        for (Piece piece = start; piece <= end; piece++) {
+        for (PieceType pt = PT_PAWN; pt < PT_KING; pt++) {
             // if there's a piece on the target square
-            if (get_bit(board->pos.piece[piece], mv.target)) {
+            if (get_bit(board->piece[board->side ^ 1][pt], mv.target)) {
                 // remove it from corresponding bitboard
-                captured_piece = piece;
+                captured_piece = (Piece){.color = board->side ^ 1, .type = pt};
                 break;
             }
         }
 
-        return MVV_LVA[piece][captured_piece] + 10000;
+        return MVV_LVA[PIECE_IND(piece)][PIECE_IND(captured_piece)] + 10000;
     } else {
         if (move_eq(S_INFO.killer_moves[0][S_INFO.ply], mv)) {
             // Score 1st killer move
@@ -138,7 +128,7 @@ int score_move(Board *board, Move mv) {
             return 8000;
         } else {
             // Score history move
-            return S_INFO.history_moves[piece][mv.target];
+            return S_INFO.history_moves[PIECE_IND(piece)][mv.target];
         }
     }
 }
@@ -170,7 +160,7 @@ void sort_moves(Board *board, MoveList *mvs) {
     }
 }
 
-static void _uci_checkup() {
+static void _uci_checkup(void) {
     int time_ms = nanos_since_unspecified_epoch() / (1000 * 1000);
     if (U_INFO.timeset && time_ms > U_INFO.stoptime) {
         U_INFO.stopped = true;
@@ -265,9 +255,8 @@ int negamax(Board *board, int alpha, int beta, int depth) {
 
     // Check extension
     bool in_check = board_is_sq_attacked(board,
-        bb_lsb_index(
-            board->pos.piece[board->state.side == C_WHITE ? P_LK : P_DK]),
-        board->state.side ^ 1
+        bb_lsb_index(board->piece[board->side][PT_KING]),
+        board->side ^ 1
     );
     if (in_check) depth++;
 
@@ -282,12 +271,12 @@ int negamax(Board *board, int alpha, int beta, int depth) {
         Board clone = *board;
 
         // Switch sides (essentially gifting the opponent an extra move)
-        state_change_side(&board->state);
+        board_change_side(board);
 
         // Reset enpassant square (b/c on the opponent's additional move we
         // don't want the opponent to make an enpassant capture...as it does
         // not make any sense to do so)
-        board->state.enpassant = SQ_NONE;
+        board->enpassant = SQ_NONE;
 
         // Search moves with reduced depht to find beta cutoffs
         int score = -negamax(board, -beta, -beta + 1, depth - 1 - NULL_MOVE_REDUCTION);
@@ -381,7 +370,7 @@ int negamax(Board *board, int alpha, int beta, int depth) {
         if (score > alpha) {
             // A better move has been found
             if (mv.flag != MVF_Capture) {
-                S_INFO.history_moves[pos_get_piece(board->pos, mv.source)][mv.target] += depth;
+                S_INFO.history_moves[PIECE_IND(board_get_piece(board, mv.source))][mv.target] += depth;
             }
 
             // PV node (move)

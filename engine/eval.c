@@ -2,9 +2,9 @@
 
 #include "psqt.h"
 
-int MATERIAL_SCORE[12] = {
-     100,  300,  350,  500,  1000,  10000,
-    -100, -300, -350, -500, -1000, -10000,
+int MATERIAL_SCORE[2][6] = {
+    { 100,  300,  350,  500,  1000,  10000},
+    {-100, -300, -350, -500, -1000, -10000},
 };
 
 int evaluate(Board *board) {
@@ -13,39 +13,53 @@ int evaluate(Board *board) {
     Bitboard bb;
     Sq square;
 
-    for (Piece piece = P_LP; piece <= P_DK; piece++) {
-        bb = board->pos.piece[piece];
-        while (bb) {
-            square = bb_lsb_index(bb);
+    for (Color c = C_WHITE; c <= C_BLACK; c++) {
+        for (PieceType pt = PT_PAWN; pt <= PT_KING; pt++) {
+            bb = board->piece[c][pt];
+            while (bb) {
+                square = bb_lsb_index(bb);
 
-            score += MATERIAL_SCORE[piece];
+                score += MATERIAL_SCORE[c][pt];
 
-            switch (piece) {
-                case P_LP: score += PAWN_PSQT[square]; break;
-                case P_LN: score += KNIGHT_PSQT[square]; break;
-                case P_LB: score += BISHOP_PSQT[square]; break;
-                case P_LR: score += ROOK_PSQT[square]; break;
-                case P_LK: score += KING_PSQT[square]; break;
+                switch (pt) {
+                    case PT_PAWN:
+                        score += (c == C_WHITE)
+                            ? PAWN_PSQT[square] : -PAWN_PSQT[FLIP(square)];
+                        break;
 
-                case P_DP: score -= PAWN_PSQT[FLIP(square)]; break;
-                case P_DN: score -= KNIGHT_PSQT[FLIP(square)]; break;
-                case P_DB: score -= BISHOP_PSQT[FLIP(square)]; break;
-                case P_DR: score -= ROOK_PSQT[FLIP(square)]; break;
-                case P_DK: score -= KING_PSQT[FLIP(square)]; break;
+                    case PT_KNIGHT:
+                        score += (c == C_WHITE)
+                            ? KNIGHT_PSQT[square] : -KNIGHT_PSQT[FLIP(square)];
+                        break;
 
-                case P_LQ:
-                case P_DQ: score += 0; break;
+                    case PT_BISHOP:
+                        score += (c == C_WHITE)
+                            ? BISHOP_PSQT[square] : -BISHOP_PSQT[FLIP(square)];
+                        break;
 
-                case P_NONE:
-                default:
-                    fprintf(stderr, "Unknown kind of piece: %d\n", piece);
-                    break;
+                    case PT_ROOK:
+                        score += (c == C_WHITE)
+                            ? ROOK_PSQT[square] : -ROOK_PSQT[FLIP(square)];
+                        break;
+
+                    case PT_KING:
+                        score += (c == C_WHITE)
+                            ? KING_PSQT[square] : -KING_PSQT[FLIP(square)];
+                        break;
+
+                    case PT_QUEEN: score += 0; break;
+
+                    case PT_NONE:
+                    default:
+                        fprintf(stderr, "Unknown kind of piece: %d\n", pt);
+                        break;
+                }
+
+                pop_bit(bb, square);
             }
-
-            pop_bit(bb, square);
         }
     }
 
-    return board->state.side == C_WHITE ? score : -score;
+    return board->side == C_WHITE ? score : -score;
 }
 

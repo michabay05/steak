@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../nob.h"
 #include "../chess/chess.h"
+#include "../nob.h"
 #include "util.c"
 
 #define BUF_SIZE 64 * 1024
@@ -37,14 +37,12 @@ typedef enum {
     PGN_TK_GAME_OUTCOME,
 } PGN_TokenKind;
 
-typedef struct
-{
+typedef struct {
     String_View lexeme;
     PGN_TokenKind kind;
 } PGN_Token;
 
-typedef struct
-{
+typedef struct {
     PGN_Token *items;
     int count;
     int capacity;
@@ -53,7 +51,8 @@ typedef struct
 static bool is_move_number(String_View *sv) {
     char c;
     while ((c = peek(*sv)) != '.') {
-        if (!isdigit(c)) return false;
+        if (!isdigit(c))
+            return false;
         consume(sv);
     }
     return true;
@@ -79,7 +78,8 @@ static bool is_valid_move_letter(char c) {
 }
 
 static bool is_move_text(String_View *sv) {
-    if (sv == NULL) return false;
+    if (sv == NULL)
+        return false;
 
     char c = peek(*sv);
     while (c != '\0' && !isspace(c)) {
@@ -93,25 +93,26 @@ static bool is_move_text(String_View *sv) {
     return false;
 }
 
-static void token_append(
-    PGN_TokenList *tl, String_View sv, PGN_TokenKind kind
-) {
-    PGN_Token t = {
-        .lexeme = sv,
-        .kind = kind
-    };
+static void token_append(PGN_TokenList *tl, String_View sv, PGN_TokenKind kind) {
+    PGN_Token t = {.lexeme = sv, .kind = kind};
 
     da_append(tl, t);
 }
 
 static const char *token_to_cstr(PGN_Token t) {
     switch (t.kind) {
-        case PGN_TK_TAG_KEY: return "key";
-        case PGN_TK_TAG_VALUE: return "value";
-        case PGN_TK_MOVE: return "move";
-        case PGN_TK_COMMENT: return "comment";
-        case PGN_TK_GAME_OUTCOME: return "outcome";
-        default: UNREACHABLE("Unknown kind of token");
+    case PGN_TK_TAG_KEY:
+        return "key";
+    case PGN_TK_TAG_VALUE:
+        return "value";
+    case PGN_TK_MOVE:
+        return "move";
+    case PGN_TK_COMMENT:
+        return "comment";
+    case PGN_TK_GAME_OUTCOME:
+        return "outcome";
+    default:
+        UNREACHABLE("Unknown kind of token");
     }
 }
 
@@ -224,16 +225,16 @@ static void pgn__parse(PGN *pgn, const PGN_TokenList tl) {
 }
 
 void pgn_print(PGN pgn) {
-    printf("Event: "SV_Fmt"\n", SV_Arg(pgn.event));
-    printf(" Site: "SV_Fmt"\n", SV_Arg(pgn.site));
-    printf(" Date: "SV_Fmt"\n", SV_Arg(pgn.date));
+    printf("Event: " SV_Fmt "\n", SV_Arg(pgn.event));
+    printf(" Site: " SV_Fmt "\n", SV_Arg(pgn.site));
+    printf(" Date: " SV_Fmt "\n", SV_Arg(pgn.date));
     if (pgn.round >= 0) {
         printf("Round: %d\n", pgn.round);
     } else {
         printf("Round: unknown\n");
     }
-    printf("White: "SV_Fmt"\n", SV_Arg(pgn.white_player));
-    printf("Black: "SV_Fmt"\n", SV_Arg(pgn.black_player));
+    printf("White: " SV_Fmt "\n", SV_Arg(pgn.white_player));
+    printf("Black: " SV_Fmt "\n", SV_Arg(pgn.black_player));
 }
 
 bool pgn_read(char *filepath, PGN *pgn) {
@@ -244,7 +245,8 @@ bool pgn_read(char *filepath, PGN *pgn) {
     }
 
     pgn->sb = (String_Builder){0};
-    if (!nob_read_entire_file(filepath, &pgn->sb)) return false;
+    if (!nob_read_entire_file(filepath, &pgn->sb))
+        return false;
     Nob_String_View sv = nob_sb_to_sv(pgn->sb);
 
     PGN_TokenList tl = {0};
@@ -252,8 +254,7 @@ bool pgn_read(char *filepath, PGN *pgn) {
 
     for (int i = 0; i < tl.count; i++) {
         PGN_Token tok = tl.items[i];
-        printf("[%d] (%s) "SV_Fmt"\n",
-            i, token_to_cstr(tok), SV_Arg(tok.lexeme));
+        printf("[%d] (%s) " SV_Fmt "\n", i, token_to_cstr(tok), SV_Arg(tok.lexeme));
     }
 
     pgn__parse(pgn, tl);
@@ -261,10 +262,6 @@ bool pgn_read(char *filepath, PGN *pgn) {
     return true;
 }
 
-bool pgn_is_valid(PGN *pgn) {
-    TODO("pgn_is_valid()");
-}
+bool pgn_is_valid(PGN *pgn) { TODO("pgn_is_valid()"); }
 
-void pgn_deinit(PGN *pgn) {
-    sb_free(pgn->sb);
-}
+void pgn_deinit(PGN *pgn) { sb_free(pgn->sb); }

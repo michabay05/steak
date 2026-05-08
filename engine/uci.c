@@ -1,7 +1,10 @@
 #include <stdlib.h>
 #define NOB_IMPLEMENTATION
-#include "nob.h"
 #include "engine.h"
+#include "../chess/chess_unity.c"
+
+#include "eval.c"
+#include "search.c"
 
 #define INPUT_BUFSZ 8*1024
 
@@ -29,7 +32,7 @@ static int sv_index(String_View haystack, String_View needle) {
         String_View temp = sv_chop_left(&haystack, 1);
 
         bool found = true;
-        for (int k = 0; found && k < needle.count; k++) {
+        for (u32 k = 0; found && k < needle.count; k++) {
             if (temp.data[k] != needle.data[k]) found = false;
         }
         if (found) return i;
@@ -56,13 +59,11 @@ static void _uci_parse_position(String_View args) {
     }
 
     if (fen_sv.count == 0) return;
-
-    FENInfo fen_info = parse_fen_sv(fen_sv);
-    board_set_from_fen(&U_INFO.board, fen_info);
+    board_parse_fen_sv(&U_INFO.board, fen_sv);
 
     if (moves_ind < 0) return;
 
-    String_View moves_sv = sv_chop_by_delim(&args, ' ');
+    sv_chop_by_delim(&args, ' ');
     MoveList ml = {0};
     while (args.count > 0) {
         String_View msv = sv_chop_by_delim(&args, ' ');
@@ -98,21 +99,13 @@ static void _uci_parse_go(String_View args) {
 
         if (sv_eq(key, sv_from_cstr("depth"))) {
             U_INFO.depth = num;
-        } else if (sv_eq(key, sv_from_cstr("wtime"))
-            && U_INFO.board.state.side == C_WHITE)
-        {
+        } else if (sv_eq(key, sv_from_cstr("wtime")) && U_INFO.board.side == C_WHITE) {
             U_INFO.time = num;
-        } else if (sv_eq(key, sv_from_cstr("btime"))
-            && U_INFO.board.state.side == C_BLACK)
-        {
+        } else if (sv_eq(key, sv_from_cstr("btime")) && U_INFO.board.side == C_BLACK) {
             U_INFO.time = num;
-        } else if (sv_eq(key, sv_from_cstr("winc"))
-            && U_INFO.board.state.side == C_WHITE)
-        {
+        } else if (sv_eq(key, sv_from_cstr("winc")) && U_INFO.board.side == C_WHITE) {
             U_INFO.inc = num;
-        } else if (sv_eq(key, sv_from_cstr("binc"))
-            && U_INFO.board.state.side == C_BLACK)
-        {
+        } else if (sv_eq(key, sv_from_cstr("binc")) && U_INFO.board.side == C_BLACK) {
             U_INFO.inc = num;
         } else if (sv_eq(key, sv_from_cstr("movetime"))) {
             U_INFO.movetime = num;

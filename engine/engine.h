@@ -1,7 +1,7 @@
 #ifndef _ENGINE_H_
 #define _ENGINE_H_
 
-#include "../chess/chess.h"
+#include "../chess/chess_unity.h"
 
 typedef struct {
     Board board;
