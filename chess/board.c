@@ -1,5 +1,6 @@
 #include "defs.h"
 #include "precalculate.h"
+#include <stdio.h>
 #include "board.h"
 
 // clang-format off
@@ -29,71 +30,51 @@ const int castling_rights[64] = {
 };
 // clang-format on
 
-void board_add_piece(Board *board, Piece piece, Sq sq) {
-    set_bit(board->piece[piece.color][piece.type], sq);
-    board_update_units(board);
-}
-
-void board_remove_piece(Board *board, Piece piece, Sq sq) {
-    pop_bit(board->piece[piece.color][piece.type], sq);
-    board_update_units(board);
-}
-
 Piece board_get_piece(Board *board, Sq sq) {
     for (Color c = C_WHITE; c <= C_BLACK; c++) {
         for (PieceType pt = PT_PAWN; pt <= PT_KING; pt++) {
-            if (get_bit(board->piece[c][pt], sq)) return (Piece){.color = c, .type = pt};
+            if (get_bit(board->piece[c][pt], sq))
+                return (Piece){.color = c, .type = pt};
         }
     }
     return P_NONE;
 }
 
-void board_update_units(Board *pos) {
+void board_update_units(Board *board) {
     // Reset all the units bitboard to 0
-    pos->units[C_WHITE] = pos->piece[C_WHITE][PT_PAWN]
-        | pos->piece[C_WHITE][PT_KNIGHT]
-        | pos->piece[C_WHITE][PT_BISHOP]
-        | pos->piece[C_WHITE][PT_ROOK]
-        | pos->piece[C_WHITE][PT_QUEEN]
-        | pos->piece[C_WHITE][PT_KING];
+    board->units[C_WHITE] = board->piece[C_WHITE][PT_PAWN]
+        | board->piece[C_WHITE][PT_KNIGHT]
+        | board->piece[C_WHITE][PT_BISHOP]
+        | board->piece[C_WHITE][PT_ROOK]
+        | board->piece[C_WHITE][PT_QUEEN]
+        | board->piece[C_WHITE][PT_KING];
 
-    pos->units[C_BLACK] = pos->piece[C_BLACK][PT_PAWN]
-        | pos->piece[C_BLACK][PT_KNIGHT]
-        | pos->piece[C_BLACK][PT_BISHOP]
-        | pos->piece[C_BLACK][PT_ROOK]
-        | pos->piece[C_BLACK][PT_QUEEN]
-        | pos->piece[C_BLACK][PT_KING];
+    board->units[C_BLACK] = board->piece[C_BLACK][PT_PAWN]
+        | board->piece[C_BLACK][PT_KNIGHT]
+        | board->piece[C_BLACK][PT_BISHOP]
+        | board->piece[C_BLACK][PT_ROOK]
+        | board->piece[C_BLACK][PT_QUEEN]
+        | board->piece[C_BLACK][PT_KING];
 
-    pos->all_units = pos->units[C_WHITE] | pos->units[C_BLACK];
+    board->all_units = board->units[C_WHITE] | board->units[C_BLACK];
 }
 
 void board_change_side(Board *board) { board->side ^= 1; }
 
-void board_set_from_fen(Board *board, FENInfo fen) {
-    *board = (Board){0};
-    // Set pieces
-    for (int i = 0; i < 64; i++) {
-        if (fen.board[i].type == PT_NONE) continue;
-        board_add_piece(board, fen.board[i], i);
-    }
-    board->side = fen.side;
-    board->castling = fen.castling;
-    board->enpassant = fen.enpassant;
-    board->half_moves = fen.half_moves;
-    board->full_moves = fen.full_moves;
-}
-
-static void print_castling(u8 castling) {
+// TODO: ensure that the buffer's size is at least 5.
+static void castling_to_str(u8 castling, char *buf) {
+    int i = 0;
     if (castling == 0) {
-        printf("-\n");
+        sprintf(buf, "-");
         return;
     }
 
-    if (castling & (1 << CR_LK)) printf("K");
-    if (castling & (1 << CR_LQ)) printf("Q");
-    if (castling & (1 << CR_DK)) printf("k");
-    if (castling & (1 << CR_DQ)) printf("q");
-    printf("\n");
+    if (castling & (1 << CR_LK)) buf[i++] = 'K';
+    if (castling & (1 << CR_LQ)) buf[i++] = 'Q';
+    if (castling & (1 << CR_DK)) buf[i++] = 'k';
+    if (castling & (1 << CR_DQ)) buf[i++] = 'q';
+
+    buf[i++] = 0;
 }
 
 void board_print(Board *b) {
@@ -106,11 +87,14 @@ void board_print(Board *b) {
         }
         printf("\n    +---+---+---+---+---+---+---+---+\n");
     }
+
+    char castling_buf[5] = {0};
+    castling_to_str(b->castling, castling_buf);
+
     printf("      a   b   c   d   e   f   g   h\n\n");
     printf("        Side: %s\n", !b->side ? "white" : "black");
     printf("   Enpassant: %s\n", str_coords[b->enpassant]);
-    printf("    Castling: ");
-    print_castling(b->castling);
+    printf("    Castling: %s\n", castling_buf);
     printf("       Moves: %d\n", b->full_moves);
 }
 
@@ -147,4 +131,120 @@ inline bool board_is_in_check(Board *b) {
         bb_lsb_index(b->piece[b->side ^ 1][PT_KING]),
         b->side
     );
+}
+
+inline void board_parse_fen_cstr(Board *board, const char *fen) {
+    board_parse_fen_sv(board, sv_from_cstr(fen));
+}
+
+void board_parse_fen_sv(Board *board, String_View fen) {
+    // Piece placements
+    u8 rank = 7, file = 0;
+
+    // Set every square to be empty before setting values
+    Board temp = {0};
+    String_View pieces = sv_chop_by_delim(&fen, ' ');
+    while (pieces.count > 0) {
+        char c = sv_chop_left(&pieces, 1).data[0];
+        if (c == '/') {
+            rank--;
+            file = 0;
+            continue;
+        } else if (c >= '0' && c <= '9') {
+            file += c - '0';
+            continue;
+        }
+
+        Sq sq = SQ(rank, file);
+        switch (c) {
+            case 'K': set_bit(temp.piece[C_WHITE][PT_KING]  , sq); break;
+            case 'Q': set_bit(temp.piece[C_WHITE][PT_QUEEN] , sq); break;
+            case 'R': set_bit(temp.piece[C_WHITE][PT_ROOK]  , sq); break;
+            case 'B': set_bit(temp.piece[C_WHITE][PT_BISHOP], sq); break;
+            case 'N': set_bit(temp.piece[C_WHITE][PT_KNIGHT], sq); break;
+            case 'P': set_bit(temp.piece[C_WHITE][PT_PAWN]  , sq); break;
+            case 'k': set_bit(temp.piece[C_BLACK][PT_KING]  , sq); break;
+            case 'q': set_bit(temp.piece[C_BLACK][PT_QUEEN] , sq); break;
+            case 'r': set_bit(temp.piece[C_BLACK][PT_ROOK]  , sq); break;
+            case 'b': set_bit(temp.piece[C_BLACK][PT_BISHOP], sq); break;
+            case 'n': set_bit(temp.piece[C_BLACK][PT_KNIGHT], sq); break;
+            case 'p': set_bit(temp.piece[C_BLACK][PT_PAWN]  , sq); break;
+        }
+        file++;
+    }
+    board_update_units(&temp);
+
+    // Push pointer one more to account for space
+    String_View side_to_move = sv_chop_by_delim(&fen, ' ');
+    temp.side = sv_eq(side_to_move, sv_from_cstr("w")) ? C_WHITE : C_BLACK;
+
+    String_View castling = sv_chop_by_delim(&fen, ' ');
+    while (castling.count > 0) {
+        char c = sv_chop_left(&castling, 1).data[0];
+        switch (c) {
+            case 'K': set_bit(temp.castling, CR_LK); break;
+            case 'Q': set_bit(temp.castling, CR_LQ); break;
+            case 'k': set_bit(temp.castling, CR_DK); break;
+            case 'q': set_bit(temp.castling, CR_DQ); break;
+        }
+
+    }
+
+    temp.enpassant = SQ_NONE;
+    String_View enpassant = sv_chop_by_delim(&fen, ' ');
+    if (!sv_eq(enpassant, sv_from_cstr("-")) && enpassant.count == 2) {
+        int file = enpassant.data[0] - 'a';
+
+        int rank = 8 - (enpassant.data[1] - '0');
+        temp.enpassant = SQ(rank, file);
+    }
+
+
+    String_View half_moves = sv_chop_by_delim(&fen, ' ');
+    temp.half_moves = atoi(half_moves.data);
+
+    String_View full_moves = sv_chop_by_delim(&fen, ' ');
+    temp.full_moves = atoi(full_moves.data);
+
+    *board = temp;
+}
+
+void board_fen_generate(Board *board, String_Builder *sb) {
+    // Piece arrangement
+    for (Rank r = RANK_1; r <= RANK_8; r++) {
+        int empty = 0;
+        for (File f = FILE_A; f <= FILE_H; f++) {
+            Piece p = board_get_piece(board, SQ(7 - r, f));
+            if (p.type == PT_NONE) empty++;
+            else {
+                if (empty > 0) sb_appendf(sb, "%d", empty);
+                sb_append(sb, piece_char[p.color][p.type]);
+                empty = 0;
+            }
+        }
+
+        if (empty != 0) sb_appendf(sb, "%d", empty);
+        if (r < RANK_8) sb_append(sb, '/');
+    }
+    sb_append(sb, ' ');
+
+    // Side to move
+    sb_append(sb, board->side == C_WHITE ? 'w' : 'b');
+    sb_append(sb, ' ');
+
+    // Castling right
+    char castling_buf[5] = {0};
+    castling_to_str(board->castling, castling_buf);
+    sb_append_buf(sb, castling_buf, strlen(castling_buf));
+    sb_append(sb, ' ');
+
+    // Enpassant square
+    if (board->enpassant == SQ_NONE) sb_append(sb, '-');
+    else sb_append_cstr(sb, str_coords[board->enpassant]);
+    sb_append(sb, ' ');
+
+    // Half move
+    sb_appendf(sb, "%d ", board->half_moves);
+    // Full move
+    sb_appendf(sb, "%d", board->full_moves);
 }

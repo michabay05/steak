@@ -37,9 +37,7 @@ static void test_fen_empty(void) {
     };
 
     Board board = {0};
-    FENInfo info = parse_fen_cstr(FEN_EMPTY_BOARD);
-    board_set_from_fen(&board, info);
-
+    board_parse_fen_cstr(&board, FEN_EMPTY_BOARD);
     test_compare_boards(&board, &expected);
 }
 
@@ -84,13 +82,52 @@ static void test_fen_starting(void) {
     };
 
     Board board = {0};
-    FENInfo info = parse_fen_cstr(FEN_STARTING_POS);
-    board_set_from_fen(&board, info);
-
+    board_parse_fen_cstr(&board, FEN_STARTING_POS);
     test_compare_boards(&board, &expected);
+}
+
+static void test_fen_gen_empty(void) {
+    const char *original = FEN_EMPTY_BOARD;
+    Board board = {0};
+    board_parse_fen_cstr(&board, original);
+
+    String_Builder generated = {0};
+    board_fen_generate(&board, &generated);
+    ENSURE(sv_eq(sb_to_sv(generated), sv_from_cstr(original)));
+
+    sb_free(generated);
+}
+
+static void test_fen_gen_starting(void) {
+    const char *original = FEN_STARTING_POS;
+    Board board = {0};
+    board_parse_fen_cstr(&board, original);
+
+    String_Builder generated = {0};
+    board_fen_generate(&board, &generated);
+    ENSURE(sv_eq(sb_to_sv(generated), sv_from_cstr(original)));
+
+    sb_free(generated);
+}
+
+static void test_fen_gen_random(void) {
+    const char *original =
+        "1r3rk1/p1p2ppp/5q2/4p3/3p4/1P1P1P1P/P1P2P2/R2Q1RK1 b - - 0 17";
+    Board board = {0};
+    board_parse_fen_cstr(&board, original);
+
+    String_Builder generated = {0};
+    board_fen_generate(&board, &generated);
+    ENSURE(sv_eq(sb_to_sv(generated), sv_from_cstr(original)));
+
+    sb_free(generated);
 }
 
 void test_fen_main(void) {
     test_fen_empty();
     test_fen_starting();
+
+    test_fen_gen_empty();
+    test_fen_gen_starting();
+    test_fen_gen_random();
 }

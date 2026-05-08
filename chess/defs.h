@@ -43,8 +43,8 @@ typedef ENUM_DEF(u8, Rank) {
 static_assert(RANK_COUNT == 8, "There needs to be 8 ranks (rows).");
 
 typedef ENUM_DEF(u8, File) {
-    FILE_1, FILE_2, FILE_3, FILE_4,
-    FILE_5, FILE_6, FILE_7, FILE_8, FILE_COUNT,
+    FILE_A, FILE_B, FILE_C, FILE_D,
+    FILE_E, FILE_F, FILE_G, FILE_H, FILE_COUNT,
 };
 static_assert(FILE_COUNT == 8, "There needs to be 8 files (columns).");
 

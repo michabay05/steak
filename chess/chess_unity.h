@@ -1,5 +1,4 @@
 // mabay: Do not modify manually; this is auto-generated.
-#include "fen.h" // nob.c:66
 #include "defs.h" // nob.c:66
 #include "board.h" // nob.c:66
 #include "bitboard.h" // nob.c:66
