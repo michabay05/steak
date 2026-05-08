@@ -1,6 +1,0 @@
-If:
-  PathMatch: [util.c]
-
-CompileFlags:
-  Add:
-    - "-include ../nob.h"

@@ -7,8 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "../chess/chess.h"
-#include "../nob.h"
+#include "../chess/chess_unity.h"
 #include "util.c"
 
 typedef enum {
@@ -64,16 +63,9 @@ static void engine_add_output(Engine *engine, EngineOutput eo) {
     memcpy(&engine->output[engine->output_size - 1], &eo, sizeof(EngineOutput));
 }
 
-/* ================== UTIL FUNCTIONS ================ */
-bool is_space(char c) { return isspace(c); }
-// is alphabetic or numeric
-bool is_alnum(char c) { return isalnum(c); }
-// is not end-of-line
-bool is_not_eol(char c) { return c != '\r' && c != '\n'; }
-/* ================================================== */
 
+#if 0
 static void parse_config(Engine *engine, String_View *sv) {
-    size_t i = 0;
     char c;
     String_View temp = {0};
     String_View key = {0};
@@ -104,8 +96,8 @@ static void parse_config(Engine *engine, String_View *sv) {
                 consume_while(NULL, sv, &is_space);
                 consume_while(&temp, sv, &is_alnum);
                 if (!sv_eq(temp, sv_from_cstr("name"))) {
-                    // if the word after `option` isn't `name`, then skip the entire line and move
-                    // on
+                    // if the word after `option` isn't `name`, then skip
+                    // the entire line and move on
                     consume_while(NULL, sv, &is_not_eol);
                     continue;
                 }
@@ -188,6 +180,7 @@ static void parse_config(Engine *engine, String_View *sv) {
     printf("[INFO] min_hash_size = '%d'\n", engine->min_hash_size);
     printf("[INFO] max_hash_size = '%d'\n", engine->max_hash_size);
 }
+#endif
 
 void read_from_engine(Engine engine, char *buf, size_t size) { read(engine.read_fd, buf, size); }
 
@@ -218,11 +211,15 @@ bool load_engine(const char *filepath, Engine *engine) {
     read_from_engine(*engine, buf, BUF_SIZE);
 
     send_to_engine(*engine, "uci\n");
+    // TODO: come back here and remove this with actual parsing
+    // from the engine's output
+    engine->uci_ok = true;
 
     memset(buf, 0, BUF_SIZE);
     read_from_engine(*engine, buf, BUF_SIZE);
-    Nob_String_View sv_buf = nob_sv_from_parts(buf, strlen(buf));
-    parse_config(engine, &sv_buf);
+
+    // Nob_String_View sv_buf = nob_sv_from_parts(buf, strlen(buf));
+    // parse_config(engine, &sv_buf);
 
     send_to_engine(*engine, "isready\n");
 
@@ -254,7 +251,7 @@ static bool identify_info(String_View info_key, InfoValueType *ivt) {
     };
 
     int n = (sizeof(matches) / sizeof(matches[0]));
-    for (size_t i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++) {
         const char *key = matches[i].key_str;
         if (sv_eq(info_key, sv_from_cstr(key))) {
             *ivt = matches[i].key_ivt;
@@ -265,10 +262,9 @@ static bool identify_info(String_View info_key, InfoValueType *ivt) {
     return false;
 }
 
-void parse_engine_output(String_View *sv, Engine *engine) {
+void parse_engine_output0(String_View *sv, Engine *engine) {
     printf("[INFO] Initial string: '"SV_Fmt"'\n", SV_Arg(*sv));
 
-    size_t i = 0;
     String_View temp = {0};
     String_View key = {0};
     String_View value = {0};
@@ -283,6 +279,10 @@ void parse_engine_output(String_View *sv, Engine *engine) {
             } else {
                 consume_while(&temp, sv, &is_alnum);
                 if (sv_eq(temp, sv_from_cstr("info"))) {
+                    continue;
+                }
+                if (sv_eq(temp, sv_from_cstr("string"))) {
+                    consume_while(&temp, sv, &is_not_eol);
                     continue;
                 }
                 if (sv_eq(temp, sv_from_cstr("mate"))

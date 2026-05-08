@@ -111,8 +111,9 @@ int main(int argc, char **argv) {
     Cmd cmd = {0};
     prep_unity(&cmd, "chess");
 
-    if (!build_exe(&cmd, "chess/perft.c", "perft")) return 1;
-    if (!build_exe(&cmd, "tests/run_tests.c", "run_tests")) return 1;
+    // if (!build_exe(&cmd, "chess/perft.c", "perft")) return 1;
+    // if (!build_exe(&cmd, "tests/run_tests.c", "run_tests")) return 1;
+    if (!build_exe(&cmd, "./tournament/comm_test.c", "comm_test")) return 1;
 
     // build_exe(&cmd, "engine/uci.c", "steak-engine");
     // if (!cmd_run(&cmd)) return 1;
