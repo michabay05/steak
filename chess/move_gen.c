@@ -20,7 +20,6 @@ int movelist_search(MoveList ml, Sq source, Sq target, PieceType promoted) {
     return -1;
 }
 
-#if 0
 void movelist_print_list(MoveList ml) {
     printf("    Source   |   Target  |  Promoted  |  Capture  |  Two "
            "Square Push  |  Enpassant  |  Castling\n");
@@ -40,7 +39,6 @@ void movelist_print_list(MoveList ml) {
     }
     printf("\n    Total number of moves: %d\n", ml.count);
 }
-#endif
 
 #define pawn_enemy_back_rank(c, sq) (c == C_WHITE ? (SQ_A8 <= sq && sq <= SQ_H8) : (SQ_A1 <= sq && sq <= SQ_H1))
 #define pawn_starting_rank(c, sq) (c == C_WHITE ? (SQ_A2 <= sq && sq <= SQ_H2) : (SQ_A7 <= sq && sq <= SQ_H7))
@@ -249,13 +247,12 @@ void movelist_legal(MoveList *ml, Board *b) {
     MoveList temp = {0};
     movelist_generate_all(&temp, b);
 
-    *ml = (MoveList){0};
+    ml->count = 0;
     Board copy;
     for (int i = 0; i < temp.count; i++) {
         copy = *b;
         if (move_make(b, temp.list[i], AllMoves)) {
-            ml->list[ml->count] = temp.list[i];
-            ml->count++;
+            ml->list[ml->count++] = temp.list[i];
         }
         *b = copy;
     }

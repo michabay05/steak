@@ -20,6 +20,7 @@ typedef uint64_t u64;
 typedef u64 Bitboard;
 
 #define ENUM_DEF(e_type, e_name) e_type e_name; enum
+#define PRINT_TO_STDERR
 
 // clang-format off
 typedef ENUM_DEF(u16, Sq) {

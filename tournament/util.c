@@ -20,7 +20,7 @@ String_View consume_ahead(String_View *sv, int n) {
 }
 #define consume(sv) consume_ahead(sv, 1)
 
-int peek_while(String_View sv, int (*filter_func)(char c)) {
+int peek_while(String_View sv, int (*filter_func)(int c)) {
     int len = 0;
     while (filter_func(peek_ahead(sv, len))) {
         // consume(sv);

@@ -40,7 +40,7 @@ static void eo_parse_go(String_View sv, Move *best_move) {
         } else if (sv_eq(arg, sv_from_cstr("ponder"))) {
             sv_chop_by_delim(&sv, ' ');
         } else {
-            // Unknown things must be ignored according to the UCI protocol
+            // Unknown things must be ignored silently according to the UCI protocol
             sv_chop_by_delim(&sv, ' ');
         }
     }
@@ -52,10 +52,47 @@ typedef struct {
     int write_fd;
 } Engine;
 
+typedef enum {
+    GS_ONGOING,
+    GS_WHITE_WINS,
+    GS_BLACK_WINS,
+    GS_DRAW,
+} GameState;
+
+GameState check_game_state(MoveList *ml, Board *board) {
+    ml->count = 0;
+    movelist_legal(ml, board);
+    if (ml->count > 0) return GS_ONGOING;
+
+    movelist_print_list(*ml);
+
+    if (board_is_sq_attacked(board,
+        board->piece[board->side][PT_KING],
+        board->side ^ 1
+    )) return board->side == C_WHITE ? GS_BLACK_WINS : GS_WHITE_WINS;
+    else return GS_DRAW;
+}
+
 int engine_read(Engine engine, char *buf, size_t size);
 int engine_write(Engine engine, char *command);
 bool engine_load(const char *filepath, Engine *engine);
 void engine_unload(Engine engine);
+
+int main2(void) {
+    const char *fen = "r2qk2r/pppbp3/2n3NB/3pP3/3P4/2P5/PP4PP/RN1QK2R b KQkq - 0 12";
+    attack_init();
+
+    Board b = {0};
+    board_parse_fen_cstr(&b, fen);
+
+    MoveList ml = {0};
+    movelist_generate_all(&ml, &b);
+    movelist_print_list(ml);
+
+    movelist_legal(&ml, &b);
+    movelist_print_list(ml);
+    return 0;
+}
 
 int main(int argc, char **argv) {
     const char *program_name = shift_args(&argc, &argv);
@@ -79,6 +116,8 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    attack_init();
+
     char temp_buf[BUF_SIZE] = {0};
     const char *start_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
     u32 time_per_move = 1000;
@@ -87,11 +126,12 @@ int main(int argc, char **argv) {
     String_Builder input = {0};
     String_Builder history = {0};
     MoveList ml = {0};
+    GameState state = GS_ONGOING;
 
     Engine *current = &engine_a;
     bool is_a_current = true;
 
-    for (size_t i = 0; i < 80; i++) {
+    for (size_t i = 0; state == GS_ONGOING; i++) {
         memset(temp_buf, 0, BUF_SIZE);
 
         input.count = 0;
@@ -105,7 +145,7 @@ int main(int argc, char **argv) {
         sb_append(&input, '\n');
         sb_appendf(&input, "go movetime %d\n", time_per_move);
 
-        printf("[IN] >> %s\n", input.items);
+        printf("%zu: [%s] << %s\n", i + 1, is_a_current ? engine_a_path : engine_b_path, input.items);
         engine_write(*current, input.items);
 
         usleep((u32)(1.1 * 1e6));
@@ -114,9 +154,10 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[ERROR] Failed to communicate properly.\n");
             break;
         }
-        // printf("%s\n", temp_buf);
-        // printf("------------------\n");
 
+        // printf(">>############################################################>>\n");
+        // printf("%s\n", temp_buf);
+        // printf("<<############################################################<<\n");
 
         Move best_move = {0};
         eo_parse_go(sv_from_cstr(temp_buf), &best_move);
@@ -124,11 +165,21 @@ int main(int argc, char **argv) {
         // Validate move
         char move_buf[6] = {0};
         move_to_str(best_move, move_buf);
-        printf("[OUT] << '%s'\n", move_buf);
+        printf("[%s] >> '%s'\n", is_a_current ? engine_a_path : engine_b_path, move_buf);
 
-        if (!move_make(&board, best_move, AllMoves)) {
-            fprintf(stderr, "[ERROR] Invalid or illegal move: '%s'\n", move_buf);
+        movelist_generate_all(&ml, &board);
+        int ind = movelist_search(ml, best_move.source, best_move.target, best_move.promoted);
+        if (ind < 0) {
+            fprintf(stderr, "[ERROR] Did not find move among legal moves: '%s'\n", move_buf);
+            movelist_print_list(ml);
             break;
+        }
+
+        for (int i = 0; i < ml.count; i++) {
+            Move move = ml.list[i];
+            if (move_eq(move, best_move) && move_make(&board, move, AllMoves)) {
+                break;
+            }
         }
 
         if (i > 0) sb_append(&history, ' ');
@@ -136,9 +187,12 @@ int main(int argc, char **argv) {
 
         current = is_a_current ? &engine_b : &engine_a;
         is_a_current = !is_a_current;
+
+        state = check_game_state(&ml, &board);
     }
 
-    printf("Final move list: %s\n", history.items);
+    printf("Game state = %d\n", state);
+    board_print(&board);
 
     sb_free(input);
     sb_free(history);
@@ -165,13 +219,15 @@ bool engine_load(const char *filepath, Engine *engine) {
         return false;
     }
 
-    if (engine->read_fd == INVALID_FD || engine->write_fd == INVALID_FD)
+    if (engine->read_fd == INVALID_FD || engine->write_fd == INVALID_FD) {
+        fprintf(stderr, "Invalid fd: (read = %d, write = %d)\n", engine->read_fd, engine->write_fd);
         return false;
+    }
 
     char buf[BUF_SIZE] = {0};
 
     // Read whatever the engine prints out at the beginning; discard it
-    // engine_read(*engine, buf, BUF_SIZE);
+    engine_read(*engine, buf, BUF_SIZE);
 
     engine_write(*engine, "uci\n");
     memset(buf, 0, BUF_SIZE);
@@ -187,7 +243,7 @@ bool engine_load(const char *filepath, Engine *engine) {
 
     // If engine doesn't respond with 'readyok', then
     // the engine is pressumed to be unprepared
-    return (!strncmp(buf, "readyok", 7));
+    return !strncmp(buf, "readyok", 7);
 }
 
 void engine_unload(Engine engine) {
@@ -197,7 +253,7 @@ void engine_unload(Engine engine) {
 
 // ========================================================================================================================
 // Source of the 'bi_popen()' function:
-//      https://unix.stackexchange.com/questions/606861/programming-communicating-with-chess-engine-stockfish-fifos-bash-redirecti
+//  - https://unix.stackexchange.com/questions/606861/programming-communicating-with-chess-engine-stockfish-fifos-bash-redirecti
 static int bi_popen(const char *const command, int *const in, int *const out) {
     const int READ_END = 0;
     const int WRITE_END = 1;

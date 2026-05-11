@@ -77,6 +77,7 @@ static void castling_to_str(u8 castling, char *buf) {
     buf[i++] = 0;
 }
 
+#ifdef PRINT_TO_STDERR
 void board_print(Board *b) {
     printf("\n    +---+---+---+---+---+---+---+---+\n");
     for (int r = 0; r < 8; r++) {
@@ -96,7 +97,39 @@ void board_print(Board *b) {
     printf("   Enpassant: %s\n", str_coords[b->enpassant]);
     printf("    Castling: %s\n", castling_buf);
     printf("       Moves: %d\n", b->full_moves);
+
+    String_Builder fen_gen = {0};
+    board_fen_generate(b, &fen_gen);
+    printf("         FEN: %s\n", fen_gen.items);
+    sb_free(fen_gen);
 }
+#else
+void board_print(Board *b) {
+    fprintf(stderr, "\n    +---+---+---+---+---+---+---+---+\n");
+    for (int r = 0; r < 8; r++) {
+        fprintf(stderr, "  %d |", 8 - r);
+        for (int f = 0; f < 8; f++) {
+            Piece p = board_get_piece(b, SQ(7 - r, f));
+            fprintf(stderr, " %c |", piece_char[p.color][p.type]);
+        }
+        fprintf(stderr, "\n    +---+---+---+---+---+---+---+---+\n");
+    }
+
+    char castling_buf[5] = {0};
+    castling_to_str(b->castling, castling_buf);
+
+    fprintf(stderr, "      a   b   c   d   e   f   g   h\n\n");
+    fprintf(stderr, "        Side: %s\n", !b->side ? "white" : "black");
+    fprintf(stderr, "   Enpassant: %s\n", str_coords[b->enpassant]);
+    fprintf(stderr, "    Castling: %s\n", castling_buf);
+    fprintf(stderr, "       Moves: %d\n", b->full_moves);
+
+    String_Builder fen_gen = {0};
+    board_fen_generate(b, &fen_gen);
+    fprintf(stderr, "         FEN: %s\n", fen_gen.items);
+    sb_free(fen_gen);
+}
+#endif
 
 inline bool board_is_sq_attacked(Board *b, Sq sq, Color side) {
     // Attacked by white pawns

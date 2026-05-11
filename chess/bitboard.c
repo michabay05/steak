@@ -24,6 +24,7 @@ Bitboard make_bb_opt(size_t n, ...) {
     return out;
 }
 
+#ifdef PRINT_TO_STDERR
 void bb_print(Bitboard bb) {
     printf("\n");
     for (int r = 0; r < 8; r++) {
@@ -36,6 +37,20 @@ void bb_print(Bitboard bb) {
     printf("     - - - - - - - -\n     a b c d e f g h\n");
     printf("\n\n      Decimal: %ld\n      Hexadecimal: 0x%lx\n", bb, bb);
 }
+#else
+void bb_print(Bitboard bb) {
+    fprintf(stderr, "\n");
+    for (int r = 0; r < 8; r++) {
+        fprintf(stderr, " %d |", 8 - r);
+        for (int f = 0; f < 8; f++)
+            fprintf(stderr, " %c", get_bit(bb, (7 - r) * 8 + f) ? '1' : '.');
+
+        fprintf(stderr, "\n");
+    }
+    fprintf(stderr, "     - - - - - - - -\n     a b c d e f g h\n");
+    fprintf(stderr, "\n\n      Decimal: %ld\n      Hexadecimal: 0x%lx\n", bb, bb);
+}
+#endif
 
 #ifndef _WIN32
 int bb_count(Bitboard bb) {

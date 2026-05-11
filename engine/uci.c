@@ -1,8 +1,9 @@
 #include <stdlib.h>
 #define NOB_IMPLEMENTATION
+// #include "nob.h"
 #include "engine.h"
-#include "../chess/chess_unity.c"
 
+#include "../chess/chess_unity.c"
 #include "eval.c"
 #include "search.c"
 
@@ -22,7 +23,7 @@ UCI_Info U_INFO = {
 
 #define DEFAULT_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 #define ENGINE_NAME "steak"
-#define ENGINE_VERSION "1.0"
+#define ENGINE_VERSION "0.1"
 
 static int sv_index(String_View haystack, String_View needle) {
     if (haystack.count < needle.count) return -1;
@@ -75,6 +76,7 @@ static void _uci_parse_position(String_View args) {
         int ind = movelist_search(ml,
             parsed_move.source, parsed_move.target, parsed_move.promoted);
         if (ind < 0) {
+            movelist_print_list(ml);
             fprintf(stderr, "Illegal move: '"SV_Fmt"'\n", SV_Arg(msv));
             fprintf(stderr, "Stopping move sequence parsing\n");
             break;
@@ -82,6 +84,7 @@ static void _uci_parse_position(String_View args) {
         move_make(&U_INFO.board, ml.list[ind], AllMoves);
     }
 }
+
 
 // Example command:
 // - go depth 6 wtime 60000 btime 60000 winc 1000 binc 1000 movtime 1000 movestogo 40
@@ -165,14 +168,12 @@ int main(void) {
     attack_init();
     char buffer[INPUT_BUFSZ] = {0};
 
+    uci_parse(sv_from_cstr("uci"));
     while (!U_INFO.quit) {
         memset(buffer, 0, INPUT_BUFSZ);
         fflush(stdout);
 
-        if (!fgets(buffer, INPUT_BUFSZ - 1, stdin)) {
-            fprintf(stderr, "Unable to get read input from stdin.\n");
-            break;
-        }
+        if (!fgets(buffer, INPUT_BUFSZ - 1, stdin)) break;
         uci_parse(sv_from_parts(buffer, strlen(buffer)));
     }
 

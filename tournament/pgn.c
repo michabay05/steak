@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../chess/chess.h"
+#include "../chess/chess_unity.h"
 #include "../nob.h"
 #include "util.c"
 
@@ -117,12 +117,12 @@ static const char *token_to_cstr(PGN_Token t) {
 }
 
 /* ================== UTIL FUNCTIONS ================ */
-int is_period(char c) { return c == '.'; }
-int is_not_quote(char c) { return c != '"'; }
-int is_not_space(char c) { return !isspace(c); }
-int is_not_right_curly(char c) { return c != '}'; }
-int is_not_period(char c) { return c != '.'; }
-int is_digit(char c) { return isdigit(c); }
+int is_period(int c) { return c == '.'; }
+int is_not_quote(int c) { return c != '"'; }
+int is_not_space(int c) { return !isspace(c); }
+int is_not_right_curly(int c) { return c != '}'; }
+int is_not_period(int c) { return c != '.'; }
+int is_digit(int c) { return isdigit(c); }
 /* ================================================== */
 
 static void pgn__parse_lines(Nob_String_View *sv, PGN_TokenList *tl) {

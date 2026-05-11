@@ -41,7 +41,10 @@ Move move_parse_cstr(char *move_str) {
 // NOTE: Since a move flag can not be associated with a move upon parsing, a default move flag of
 // QUIET is assigned to the returned move.
 Move move_parse_sv(String_View msv) {
-    assert(msv.count == 4 || msv.count == 5);
+    if (!(msv.count == 4 || msv.count == 5)) {
+        fprintf(stderr, "Illegal move string: '"SV_Fmt"'", SV_Arg(msv));
+        UNREACHABLE("illegal move string during parsing");
+    }
 
     int source = SQ(msv.data[1] - '1', msv.data[0] - 'a');
     int target = SQ(msv.data[3] - '1', msv.data[2] - 'a');
@@ -85,7 +88,7 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
 
     // If move is capture, remove the piece from the opponent's bitboard
     if (move.flag == MVF_Capture) {
-        for (PieceType pt = PT_PAWN; pt <= PT_KING; pt++) {
+        for (PieceType pt = PT_PAWN; pt < PT_KING; pt++) {
             if (get_bit(main->piece[piece.color ^ 1][pt], move.target)) {
                 pop_bit(main->piece[piece.color ^ 1][pt], move.target);
                 // There's no need to keep looking for another piece because
