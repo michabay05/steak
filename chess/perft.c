@@ -1,8 +1,9 @@
 #include <stdio.h>
 
-#define NOB_IMPLEMENTATION
-#include "chess_unity.h"
-#include "chess_unity.c"
+#include "defs.h"
+#include "board.h"
+#include "move_gen.h"
+#include "precalculate.h"
 
 // leaf nodes (number of positions reached during the test of the move generator at a given depth)
 static u64 nodes = 0;
@@ -103,9 +104,8 @@ int main(void) {
     attack_init();
 
     Board board = {0};
-    // FENInfo fen_info = parse_fen_cstr(argv[0]);
-    FENInfo fen_info = parse_fen_cstr("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
-    board_set_from_fen(&board, fen_info);
+    // board_parse_fen_cstr(&board, argv[0]);
+    board_parse_fen_cstr(&board, "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
     board_print(&board);
 
     // perft_test(&board, atoi(argv[1]));

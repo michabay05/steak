@@ -1,4 +1,5 @@
-#include "../chess/chess_unity.h"
+#include "board.h"
+#include "move.h"
 #include "test.h"
 
 #define FEN_STARTING_POS "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"

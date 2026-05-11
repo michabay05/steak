@@ -1,4 +1,5 @@
-#include "../chess/chess_unity.h"
+#include "defs.h"
+#include "board.h"
 #include "test.h"
 
 #define FEN_EMPTY_BOARD "8/8/8/8/8/8/8/8 w - - 0 1"

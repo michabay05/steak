@@ -1,6 +1,6 @@
 #include <stdarg.h>
 
-#include "../chess/chess_unity.h"
+#include "precalculate.h"
 #include "test.h"
 
 static void test_attack_pawn(void) {

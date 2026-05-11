@@ -1,11 +1,8 @@
 #include <stdlib.h>
-#define NOB_IMPLEMENTATION
-// #include "nob.h"
 #include "engine.h"
-
-#include "../chess/chess_unity.c"
-#include "eval.c"
-#include "search.c"
+#include "move.h"
+#include "move_gen.h"
+#include "precalculate.h"
 
 #define INPUT_BUFSZ 8*1024
 

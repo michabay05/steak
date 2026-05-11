@@ -1,11 +1,19 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#define NOB_IMPLEMENTATION
-#include "../chess/chess_unity.c"
-#include "util.c"
+#include "../nob.h"
+#include "board.h"
+#include "move.h"
+#include "move_gen.h"
+#include "precalculate.h"
 
 #define BUF_SIZE 64 * 1024
+
+int is_space(int c) { return isspace(c); }
+// is alphabetic or numeric
+int is_alnum(int c) { return isalnum(c); }
+// is not end-of-line
+int is_not_eol(int c) { return c != '\r' && c != '\n'; }
 
 static void eo__parse_info_line(String_View *args) {
     while (args->count > 0) {

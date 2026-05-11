@@ -1,5 +1,8 @@
 #include "engine.h"
 
+#include "move.h"
+#include "move_gen.h"
+
 // NOTE: Most valuable victim, Least valuable attacker
 // The primary idea behind this is to guide the move ordering process.
 // Typically, captures are often more worthwhile for the engine to look into as

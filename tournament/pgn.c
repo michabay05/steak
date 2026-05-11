@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../chess/chess_unity.h"
 #include "../nob.h"
 #include "util.c"
 

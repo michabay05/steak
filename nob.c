@@ -2,7 +2,7 @@
 #include "nob.h"
 
 #define C_COMP "clang"
-#define OUT_DIR "build"
+#define OUT_DIR "build/"
 #define CHESS_UNITY "chess_unity"
 
 enum BuildMode {
@@ -11,72 +11,7 @@ enum BuildMode {
 } BUILD = BM_DEBUG;
 const char *MODE_STR[] = { "DEBUG", "RELEASE" };
 
-typedef struct {
-    const char *root;
-    File_Paths srcs, headers;
-} SourceHeaders;
-
-bool walk_chess_func(Nob_Walk_Entry entry) {
-    if (entry.type != FILE_REGULAR) return true;
-
-    SourceHeaders *sh = (SourceHeaders*)entry.data;
-    String_View sv = sv_from_cstr(entry.path);
-    sv_chop_prefix(&sv, sv_from_cstr(temp_sprintf("%s/", sh->root)));
-
-    // mabay: this is the auto-gen'd file; it should not be included in itself.
-    if (sv_starts_with(sv, sv_from_cstr(CHESS_UNITY))) return true;
-
-    // mabay: skip this because this is the file that will be compiled
-    if (sv_starts_with(sv, sv_from_cstr("perft"))) return true;
-
-    if (sv_ends_with_cstr(sv, ".c")) {
-        da_append(&sh->srcs, temp_sv_to_cstr(sv));
-    } else if (sv_ends_with_cstr(sv, ".h")) {
-        da_append(&sh->headers, temp_sv_to_cstr(sv));
-    }
-
-    return true;
-}
-
-static void prep_unity(Cmd *cmd, const char *src_dir) {
-    // Update unity source and header files
-    SourceHeaders sh = { .root = src_dir };
-    walk_dir(sh.root, &walk_chess_func, .data = &sh);
-
-    String_Builder sb = {0};
-
-    // Generated the unity source file
-    sb_append_cstr(&sb,
-        "// mabay: Do not modify manually; this is auto-generated.\n\n");
-    for (int i = 0; i < sh.srcs.count; i++) {
-        sb_appendf(&sb, "#include \"%s\" // %s:%d\n",
-            sh.srcs.items[i], __FILE__, __LINE__);
-    }
-    write_entire_file(
-        temp_sprintf("%s/%s.c", sh.root, CHESS_UNITY),
-        sb.items, sb.count
-    );
-
-    // Generated the unity header file
-    sb.count = 0;
-    sb_append_cstr(&sb,
-        "// mabay: Do not modify manually; this is auto-generated.\n");
-    for (int i = 0; i < sh.headers.count; i++) {
-        sb_appendf(&sb, "#include \"%s\" // %s:%d\n",
-            sh.headers.items[i], __FILE__, __LINE__);
-    }
-    write_entire_file(
-        temp_sprintf("%s/%s.h", sh.root, CHESS_UNITY),
-        sb.items, sb.count
-    );
-
-    sb_free(sb);
-}
-
-static bool build_exe(Cmd *cmd, const char *input, const char *output) {
-    // Rewind cmd
-    cmd->count = 0;
-
+static void __add_comp_n_flags(Cmd *cmd) {
     cmd_append(cmd, C_COMP);
     cmd_append(cmd, "-Wall", "-Wextra", "-pedantic");
 
@@ -84,10 +19,82 @@ static bool build_exe(Cmd *cmd, const char *input, const char *output) {
         case BM_DEBUG  : cmd_append(cmd, "-g"); break;
         case BM_RELEASE: cmd_append(cmd, "-O3"); break;
     }
+}
 
+static void __add_libchess(Cmd *cmd) {
+    const char *dir = "chess";
+    cmd_append(cmd, temp_sprintf("-I%s/", dir));
+    const char *modules[] = {
+        "bitboard", "board", "move", "move_gen", "precalculate",
+    };
+
+    for (int i = 0; i < ARRAY_LEN(modules); i++)
+        cmd_append(cmd, temp_sprintf("chess/%s.c", modules[i]));
+
+    cmd_append(cmd, "-L"OUT_DIR, "-lnob");
+}
+
+static bool build_nob_static(Cmd *cmd) {
+    cmd->count = 0;
+
+    __add_comp_n_flags(cmd);
+    cmd_append(cmd, "-x", "c");
+    cmd_append(cmd, "-D", "NOB_IMPLEMENTATION");
+    cmd_append(cmd, "-c", "nob.h");
+    cmd_append(cmd, "-o", OUT_DIR"nob.h.o");
+    if (!cmd_run(cmd)) return false;
+
+    cmd_append(cmd, "ar", "rcs");
+    cmd_append(cmd, OUT_DIR"libnob.a");
+    cmd_append(cmd, OUT_DIR"nob.h.o");
+    if (!cmd_run(cmd)) return false;
+
+    return true;
+}
+
+static bool build_perft(Cmd *cmd) {
     temp_reset();
-    cmd_append(cmd, "-o", temp_sprintf(OUT_DIR"/%s", output));
-    cmd_append(cmd, input);
+    cmd->count = 0;
+
+    __add_comp_n_flags(cmd);
+    __add_libchess(cmd);
+    cmd_append(cmd, "chess/perft.c");
+    cmd_append(cmd, "-o", OUT_DIR"perft");
+
+    return cmd_run(cmd);
+}
+
+static bool build_tests(Cmd *cmd) {
+    cmd->count = 0;
+
+    __add_comp_n_flags(cmd);
+    __add_libchess(cmd);
+    cmd_append(cmd, "tests/test_main.c");
+    cmd_append(cmd, "-o", OUT_DIR"test_main");
+
+    return cmd_run(cmd);
+}
+
+static bool build_tournament(Cmd *cmd) {
+    cmd->count = 0;
+
+    __add_comp_n_flags(cmd);
+    __add_libchess(cmd);
+    cmd_append(cmd, "tournament/comm_main.c");
+    cmd_append(cmd, "-o", OUT_DIR"comm_main");
+
+    return cmd_run(cmd);
+}
+
+static bool build_engine(Cmd *cmd) {
+    cmd->count = 0;
+
+    __add_comp_n_flags(cmd);
+    __add_libchess(cmd);
+    cmd_append(cmd, "./engine/eval.c");
+    cmd_append(cmd, "./engine/search.c");
+    cmd_append(cmd, "./engine/uci.c");
+    cmd_append(cmd, "-o", OUT_DIR"steak");
 
     return cmd_run(cmd);
 }
@@ -106,17 +113,16 @@ int main(int argc, char **argv) {
     }
 
     nob_log(INFO, "Build mode: %s", MODE_STR[BUILD]);
-    nob_log(INFO, "Build output dir: "OUT_DIR"/");
+    nob_log(INFO, "Build output dir: "OUT_DIR);
     mkdir_if_not_exists(OUT_DIR);
     Cmd cmd = {0};
-    prep_unity(&cmd, "chess");
 
-    // if (!build_exe(&cmd, "chess/perft.c", "perft")) return 1;
-    // if (!build_exe(&cmd, "tests/run_tests.c", "run_tests")) return 1;
-    if (!build_exe(&cmd, "./tournament/comm_main.c", "comm_main")) return 1;
+    if (nob_needs_rebuild1(OUT_DIR"libnob.a", "nob.h")) build_nob_static(&cmd);
 
-    build_exe(&cmd, "engine/uci.c", "steak-engine");
-    // if (!cmd_run(&cmd)) return 1;
+    if (!build_perft(&cmd)) return 1;
+    if (!build_tests(&cmd)) return 1;
+    if (!build_tournament(&cmd)) return 1;
+    if (!build_engine(&cmd)) return 1;
 
     cmd_free(cmd);
     return 0;
