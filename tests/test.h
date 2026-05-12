@@ -8,6 +8,7 @@
         if ((cond) == 0) { \
             fprintf(stderr, \
                 "[FAIL] %s:%d - '" #cond "'\n", __FUNCTION__, __LINE__); \
+            __builtin_trap(); \
         } \
     } while (0) \
 

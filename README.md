@@ -2,7 +2,7 @@
 
 ## Structure
 - `chess/` - library containing basic chess functionality
-- `tournament/` - executable that orchestrates individual games tournaments between engines
+- `tournament/` - executable that orchestrates individual games and tournaments between engines
 - `engine/` - executable that contains a UCI-compatible chess engine
 - `tests/` - basic sanity-check type of testing
 

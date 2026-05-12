@@ -18,4 +18,6 @@ void movelist_generate_all(MoveList *ml, Board *b);
 void movelist_generate(MoveList *ml, Board *b, PieceType pt);
 void movelist_legal(MoveList *ml, Board *b);
 
+void perft_driver(u64 *nodes, Board *board, int depth);
+
 #endif // _MOVE_GEN_H_

@@ -21,7 +21,6 @@ typedef float f32;
 typedef u64 Bitboard;
 
 #define ENUM_DEF(e_type, e_name) e_type e_name; enum
-#define PRINT_TO_STDERR
 
 // clang-format off
 typedef ENUM_DEF(u16, Sq) {
@@ -123,5 +122,7 @@ typedef ENUM_DEF(i8, Direction) {
     DIR_SWS = (-8 - 1) - 8, // -17
     DIR_SWW = (-8 - 1) - 1, // -10
 };
+
+typedef struct board Board;
 
 #endif // _DEFS_H_

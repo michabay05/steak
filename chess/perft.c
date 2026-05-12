@@ -8,40 +8,6 @@
 // leaf nodes (number of positions reached during the test of the move generator at a given depth)
 static u64 nodes = 0;
 
-// perft driver
-static inline void perft_driver(Board *board, int depth) {
-    // recursion escape condition
-    if (depth == 0) {
-        // increment nodes count (count reached positions)
-        nodes++;
-        return;
-    }
-
-    // create move list instance
-    MoveList ml = {0};
-
-    // generate moves
-    movelist_generate_all(&ml, board);
-
-    // loop over generated moves
-    Board clone;
-    for (int move_count = 0; move_count < ml.count; move_count++) {
-        // preserve board state
-        clone = *board;
-
-        // make move
-        if (!move_make(board, ml.list[move_count], AllMoves))
-            // skip to the next move
-            continue;
-
-        // call perft driver recursively
-        perft_driver(board, depth - 1);
-
-        // take back
-        *board = clone;
-    }
-}
-
 // perft test
 void perft_test(Board *board, int depth) {
     printf("\n     Performance test\n\n");
@@ -71,7 +37,7 @@ void perft_test(Board *board, int depth) {
         long cummulative_nodes = nodes;
 
         // call perft driver recursively
-        perft_driver(board, depth - 1);
+        perft_driver(&nodes, board, depth - 1);
 
         // old nodes
         long old_nodes = nodes - cummulative_nodes;

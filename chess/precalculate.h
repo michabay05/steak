@@ -31,9 +31,6 @@ Bitboard gen_rook_occupancy(Sq sq);
 Bitboard gen_rook_attack(Sq sq, Bitboard blocker_board);
 Bitboard set_occupancy(int index, int relevantBits, Bitboard occMask);
 
-u32 random_u32(void);
-u64 random_u64(void);
-u64 pseudo_random_magic(void);
 void magics_init(void);
 Bitboard get_bishop_attack(Sq sq, Bitboard blocker_board);
 Bitboard get_rook_attack(Sq sq, Bitboard blocker_board);

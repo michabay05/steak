@@ -1,5 +1,6 @@
 #include "defs.h"
 #include "precalculate.h"
+#include "zobrist.h"
 #include <stdio.h>
 #include "board.h"
 
@@ -77,33 +78,6 @@ static void castling_to_str(u8 castling, char *buf) {
     buf[i++] = 0;
 }
 
-#ifdef PRINT_TO_STDERR
-void board_print(Board *b) {
-    printf("\n    +---+---+---+---+---+---+---+---+\n");
-    for (int r = 0; r < 8; r++) {
-        printf("  %d |", 8 - r);
-        for (int f = 0; f < 8; f++) {
-            Piece p = board_get_piece(b, SQ(7 - r, f));
-            printf(" %c |", piece_char[p.color][p.type]);
-        }
-        printf("\n    +---+---+---+---+---+---+---+---+\n");
-    }
-
-    char castling_buf[5] = {0};
-    castling_to_str(b->castling, castling_buf);
-
-    printf("      a   b   c   d   e   f   g   h\n\n");
-    printf("        Side: %s\n", !b->side ? "white" : "black");
-    printf("   Enpassant: %s\n", str_coords[b->enpassant]);
-    printf("    Castling: %s\n", castling_buf);
-    printf("       Moves: %d\n", b->full_moves);
-
-    String_Builder fen_gen = {0};
-    board_fen_generate(b, &fen_gen);
-    printf("         FEN: %s\n", fen_gen.items);
-    sb_free(fen_gen);
-}
-#else
 void board_print(Board *b) {
     fprintf(stderr, "\n    +---+---+---+---+---+---+---+---+\n");
     for (int r = 0; r < 8; r++) {
@@ -119,17 +93,38 @@ void board_print(Board *b) {
     castling_to_str(b->castling, castling_buf);
 
     fprintf(stderr, "      a   b   c   d   e   f   g   h\n\n");
-    fprintf(stderr, "        Side: %s\n", !b->side ? "white" : "black");
-    fprintf(stderr, "   Enpassant: %s\n", str_coords[b->enpassant]);
-    fprintf(stderr, "    Castling: %s\n", castling_buf);
-    fprintf(stderr, "       Moves: %d\n", b->full_moves);
+    // fprintf(stderr, "   Hash: 0x%lx\n", b->key);
+    fprintf(stderr, "   Hash: 0x%lx\n", zobrist_gen_key(b));
 
     String_Builder fen_gen = {0};
     board_fen_generate(b, &fen_gen);
-    fprintf(stderr, "         FEN: %s\n", fen_gen.items);
+    fprintf(stderr, "    FEN: %s\n", fen_gen.items);
     sb_free(fen_gen);
 }
-#endif
+
+// void board_print(Board *b) {
+//     printf("\n    +---+---+---+---+---+---+---+---+\n");
+//     for (int r = 0; r < 8; r++) {
+//         printf("  %d |", 8 - r);
+//         for (int f = 0; f < 8; f++) {
+//             Piece p = board_get_piece(b, SQ(7 - r, f));
+//             printf(" %c |", piece_char[p.color][p.type]);
+//         }
+//         printf("\n    +---+---+---+---+---+---+---+---+\n");
+//     }
+//
+//     char castling_buf[5] = {0};
+//     castling_to_str(b->castling, castling_buf);
+//
+//     printf("      a   b   c   d   e   f   g   h\n\n");
+//     // printf("   Hash: 0x%lx\n", b->key);
+//     printf("   Hash: 0x%lx\n", zobrist_gen_key(b));
+//
+//     String_Builder fen_gen = {0};
+//     board_fen_generate(b, &fen_gen);
+//     printf("    FEN: %s\n", fen_gen.items);
+//     sb_free(fen_gen);
+// }
 
 inline bool board_is_sq_attacked(Board *b, Sq sq, Color side) {
     // Attacked by white pawns
@@ -238,6 +233,9 @@ void board_parse_fen_sv(Board *board, String_View fen) {
 
     String_View full_moves = sv_chop_by_delim(&fen, ' ');
     temp.full_moves = atoi(full_moves.data);
+
+    // Initialize zobrist key (aka. position identifier)
+    board->key = zobrist_gen_key(board);
 
     *board = temp;
 }

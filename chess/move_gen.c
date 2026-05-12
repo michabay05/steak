@@ -257,3 +257,37 @@ void movelist_legal(MoveList *ml, Board *b) {
         *b = copy;
     }
 }
+
+// perft driver
+void perft_driver(u64 *nodes, Board *board, int depth) {
+    // recursion escape condition
+    if (depth == 0) {
+        // increment nodes count (count reached positions)
+        if (nodes != NULL) (*nodes)++;
+        return;
+    }
+
+    // create move list instance
+    MoveList ml = {0};
+
+    // generate moves
+    movelist_generate_all(&ml, board);
+
+    // loop over generated moves
+    Board clone;
+    for (int move_count = 0; move_count < ml.count; move_count++) {
+        // preserve board state
+        clone = *board;
+
+        // make move
+        if (!move_make(board, ml.list[move_count], AllMoves))
+            // skip to the next move
+            continue;
+
+        // call perft driver recursively
+        perft_driver(nodes, board, depth - 1);
+
+        // take back
+        *board = clone;
+    }
+}

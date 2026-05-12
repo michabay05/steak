@@ -97,7 +97,6 @@ int main(int argc, char **argv) {
     attack_init();
 
     char temp_buf[BUF_SIZE] = {0};
-    char *start_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
     MoveList temp_ml = {0};
     String_Builder temp = {0};
@@ -107,9 +106,9 @@ int main(int argc, char **argv) {
         .white_name = sv_from_cstr("??"),
         .black_name = sv_from_cstr("??"),
         .state = PGN_GR_ONGOING,
-        .start_fen = start_fen
+        .start_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     };
-    board_parse_fen_cstr(&game.board, start_fen);
+    board_parse_fen_cstr(&game.board, game.start_fen);
     Engine *current = &engine_a;
     bool is_a_current = true;
 
@@ -118,7 +117,7 @@ int main(int argc, char **argv) {
         temp.count = 0;
         temp_ml.count = 0;
 
-        sb_appendf(&temp, "position fen %s", start_fen);
+        sb_appendf(&temp, "position fen %s", game.start_fen);
         if (history.count > 0) {
             sb_append_cstr(&temp, " moves ");
             sb_append_buf(&temp, history.items, history.count);
@@ -135,10 +134,6 @@ int main(int argc, char **argv) {
             fprintf(stderr, "[ERROR] Failed to communicate properly.\n");
             break;
         }
-
-        // printf(">>############################################################>>\n");
-        // printf("%s\n", temp_buf);
-        // printf("<<############################################################<<\n");
 
         Move best_move = {0};
         eo_parse_go(sv_from_cstr(temp_buf), &best_move);

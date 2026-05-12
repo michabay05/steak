@@ -1,6 +1,7 @@
 #include "move.h"
 #include "board.h"
 #include "defs.h"
+#include "zobrist.h"
 
 Move move_encode(Sq source, Sq target, PieceType promoted,
     MoveFlags flag) {
@@ -84,13 +85,18 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
     Piece piece = board_get_piece(main, move.source);
 
     pop_bit(main->piece[piece.color][piece.type], move.source);
+    zobrist_toggle_piece(main, piece, move.source);
+
     set_bit(main->piece[piece.color][piece.type], move.target);
+    zobrist_toggle_piece(main, piece, move.target);
 
     // If move is capture, remove the piece from the opponent's bitboard
     if (move.flag == MVF_Capture) {
         for (PieceType pt = PT_PAWN; pt < PT_KING; pt++) {
-            if (get_bit(main->piece[piece.color ^ 1][pt], move.target)) {
-                pop_bit(main->piece[piece.color ^ 1][pt], move.target);
+            Piece captured = { .color = piece.color ^ 1, .type = pt };
+            if (get_bit(main->piece[captured.color][captured.type], move.target)) {
+                pop_bit(main->piece[captured.color][captured.type], move.target);
+                zobrist_toggle_piece(main, captured, move.target);
                 // There's no need to keep looking for another piece because
                 // only one piece can be captured
                 break;
@@ -101,7 +107,10 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
     // If move is promotion, change the pawn to the desired piece
     if (move.promoted != PT_NONE) {
         pop_bit(main->piece[piece.color][piece.type], move.target);
+        zobrist_toggle_piece(main, piece, move.target);
+
         set_bit(main->piece[piece.color][move.promoted], move.target);
+        zobrist_toggle_piece(main, (Piece){.color = piece.color, .type = move.promoted}, move.target);
     }
 
     // Unlike other captures, make sure to remove the "enpassant'd" pawn from the enemy bitboard
@@ -113,46 +122,73 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
             dir = DIR_NORTH;
         }
         pop_bit(main->piece[pawn.color][pawn.type], move.target + dir);
+        zobrist_toggle_piece(main, pawn, move.target + dir);
     }
+
+    if (main->enpassant != SQ_NONE) zobrist_update_enpassant(main, main->enpassant);
     // Reset enpassant square, even if the current move was enpassant or not
     // because enpassant can only be played on the move after the two square pawn push
     main->enpassant = SQ_NONE;
+
     if (move.flag == MVF_TwoSquarePush) {
         main->enpassant = move.target
             + ((main->side == C_WHITE) ? DIR_SOUTH : DIR_NORTH);
+        zobrist_update_enpassant(main, main->enpassant);
     }
 
     // If move is castling, place the rook on the correct square
     // FYI, the king is already on the correct square (as specified in the move generation)
     if (move.flag == MVF_Castling) {
         // Target = king's target square
+        Color rook_color;
+        Sq rook_source, rook_target;
         switch (move.target) {
             case SQ_G1:
-                pop_bit(main->piece[C_WHITE][PT_ROOK], SQ_H1);
-                set_bit(main->piece[C_WHITE][PT_ROOK], SQ_F1);
+                rook_source = SQ_H1;
+                rook_target = SQ_F1;
+                rook_color  = C_WHITE;
                 break;
             case SQ_C1:
-                pop_bit(main->piece[C_WHITE][PT_ROOK], SQ_A1);
-                set_bit(main->piece[C_WHITE][PT_ROOK], SQ_D1);
+                rook_source = SQ_A1;
+                rook_target = SQ_D1;
+                rook_color  = C_WHITE;
                 break;
             case SQ_G8:
-                pop_bit(main->piece[C_BLACK][PT_ROOK], SQ_H8);
-                set_bit(main->piece[C_BLACK][PT_ROOK], SQ_F8);
+                rook_source = SQ_H8;
+                rook_target = SQ_F8;
+                rook_color  = C_BLACK;
                 break;
             case SQ_C8:
-                pop_bit(main->piece[C_BLACK][PT_ROOK], SQ_A8);
-                set_bit(main->piece[C_BLACK][PT_ROOK], SQ_D8);
+                rook_source = SQ_A8;
+                rook_target = SQ_D8;
+                rook_color  = C_BLACK;
                 break;
             default:
+                UNREACHABLE("Unknown rook target sq for castling");
                 break;
         }
+        pop_bit(main->piece[rook_color][PT_ROOK], rook_target);
+        zobrist_toggle_piece(main, (Piece){.color = rook_color, .type = PT_ROOK}, rook_source);
+
+        set_bit(main->piece[rook_color][PT_ROOK], rook_target);
+        zobrist_toggle_piece(main, (Piece){.color = rook_color, .type = PT_ROOK}, rook_target);
     }
+
     main->castling &= castling_rights[move.source];
+    zobrist_update_castling(main, main->castling);
+
     main->castling &= castling_rights[move.target];
     // Manually update the units bitboard because of the manual
     // manipulations of the piece bitboards
     board_update_units(main);
     board_change_side(main);
+
+    zobrist_toggle_side(main);
+
+#ifdef ZOBIRST_INCREMENTAL_TEST
+    ZB_Key key_from_scratch = zobrist_gen_key(main);
+    ENSURE(main->key == key_from_scratch);
+#endif
 
     // After the move is made, if the current move reveals on the check on the king
     // unmake the move by restoring the current board to the earlier clone
@@ -165,3 +201,4 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
         return true;
     }
 }
+

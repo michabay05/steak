@@ -2,8 +2,9 @@
 #define _BOARD_H_
 
 #include "bitboard.h"
+#include "zobrist.h"
 
-typedef struct {
+typedef struct board {
     Bitboard piece[2][6];
     Bitboard units[2];
     Bitboard all_units;
@@ -13,6 +14,8 @@ typedef struct {
     u16 half_moves;
     u16 full_moves;
     u8 castling;
+
+    ZB_Key key;
 } Board;
 
 extern const int castling_rights[64];

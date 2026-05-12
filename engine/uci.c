@@ -163,6 +163,7 @@ void uci_parse(String_View args) {
 
 int main(void) {
     attack_init();
+    zobrist_init();
     char buffer[INPUT_BUFSZ] = {0};
 
     uci_parse(sv_from_cstr("uci"));
@@ -171,7 +172,7 @@ int main(void) {
         fflush(stdout);
 
         if (!fgets(buffer, INPUT_BUFSZ - 1, stdin)) break;
-        uci_parse(sv_from_parts(buffer, strlen(buffer)));
+        uci_parse(sv_from_cstr(buffer));
     }
 
     return 0;

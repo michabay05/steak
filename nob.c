@@ -25,7 +25,7 @@ static void __add_libchess(Cmd *cmd) {
     const char *dir = "chess";
     cmd_append(cmd, temp_sprintf("-I%s/", dir));
     const char *modules[] = {
-        "bitboard", "board", "move", "move_gen", "precalculate",
+        "bitboard", "board", "move", "move_gen", "precalculate", "zobrist"
     };
 
     for (int i = 0; i < ARRAY_LEN(modules); i++)
@@ -121,8 +121,8 @@ int main(int argc, char **argv) {
     if (nob_needs_rebuild1(OUT_DIR"libnob.a", "nob.h")) build_nob_static(&cmd);
 
     // if (!build_perft(&cmd)) return 1;
-    // if (!build_tests(&cmd)) return 1;
-    if (!build_tournament(&cmd)) return 1;
+    if (!build_tests(&cmd)) return 1;
+    // if (!build_tournament(&cmd)) return 1;
     if (!build_engine(&cmd)) return 1;
 
     cmd_free(cmd);
