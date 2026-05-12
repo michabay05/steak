@@ -3,30 +3,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
-#include "../nob.h"
-#include "util.c"
+#include "pgn.h"
+#include "board.h"
+#include "move.h"
+#include "move_gen.h"
 
 #define BUF_SIZE 64 * 1024
 #define UNKNOWN_ROUND -1
-
-typedef enum {
-    PGN_GR_WHITE_WINS,
-    PGN_GR_BLACK_WINS,
-    PGN_GR_DRAW,
-    PGN_GR_ONGOING,
-} PGN_GameResult;
-
-typedef struct {
-    String_Builder sb;
-    String_View event;
-    String_View site;
-    String_View date;
-    int round;
-    String_View white_player;
-    String_View black_player;
-    PGN_GameResult result;
-} PGN;
 
 typedef enum {
     PGN_TK_TAG_KEY = 1,
@@ -47,15 +32,28 @@ typedef struct {
     int capacity;
 } PGN_TokenList;
 
-static bool is_move_number(String_View *sv) {
-    char c;
-    while ((c = peek(*sv)) != '.') {
-        if (!isdigit(c))
-            return false;
-        consume(sv);
-    }
-    return true;
-}
+// ##############################################################################
+// TODO: Eliminate this functions and replace them with sv_* functions from 'nob.h'
+#define is_at_end(size, ind) (ind) >= (size)
+static char peek_ahead(String_View sv, size_t ahead);
+#define peek(sv) peek_ahead(sv, 0)
+
+static String_View consume_ahead(String_View *sv, int n);
+#define consume(sv) consume_ahead(sv, 1)
+
+static int peek_while(String_View sv, int (*filter_func)(int c));
+static void consume_while(String_View *out, String_View *sv, int (*filter_func)(int c));
+// ##############################################################################
+
+// static bool is_move_number(String_View *sv) {
+//     char c;
+//     while ((c = peek(*sv)) != '.') {
+//         if (!isdigit(c))
+//             return false;
+//         consume(sv);
+//     }
+//     return true;
+// }
 
 static bool is_valid_move_letter(char c) {
     if (c == '\0')
@@ -236,18 +234,16 @@ void pgn_print(PGN pgn) {
     printf("Black: " SV_Fmt "\n", SV_Arg(pgn.black_player));
 }
 
-bool pgn_read(char *filepath, PGN *pgn) {
+bool pgn_read(char *filepath, PGN *pgn, String_Builder *sb) {
     FILE *fptr = fopen(filepath, "r");
     if (fptr == NULL) {
         fprintf(stderr, "[ERROR] Failed to open '%s'.\n", filepath);
         return false;
     }
 
-    pgn->sb = (String_Builder){0};
-    if (!nob_read_entire_file(filepath, &pgn->sb))
-        return false;
-    Nob_String_View sv = nob_sb_to_sv(pgn->sb);
+    if (!nob_read_entire_file(filepath, sb)) return false;
 
+    Nob_String_View sv = nob_sb_to_sv(*sb);
     PGN_TokenList tl = {0};
     pgn__parse_lines(&sv, &tl);
 
@@ -261,6 +257,117 @@ bool pgn_read(char *filepath, PGN *pgn) {
     return true;
 }
 
-bool pgn_is_valid(PGN *pgn) { TODO("pgn_is_valid()"); }
+bool pgn_is_valid(PGN *pgn) {
+    UNUSED(pgn);
+    TODO("pgn_is_valid()");
+}
 
-void pgn_deinit(PGN *pgn) { sb_free(pgn->sb); }
+static_assert(__count_pgn_gr == 4, "There should only be 4 game states.");
+static const char *PGN_GR_STRS[] = { "*", "1-0", "0-1", "1/2-1/2" };
+
+static int pgn__should_disambiguate(Move move, Board *board, Piece *piece, Move *other) {
+    MoveList ml = {0};
+    movelist_legal(&ml, board);
+    int count = 0;
+
+    *piece = board_get_piece(board, move.source);
+    for (int i = 0; i < ml.count; i++) {
+        PieceType target_pt = board_get_piece(board, move.source).type;
+        if (move.target == ml.list[i].target && piece->type == target_pt) {
+        }
+    }
+
+    return count;
+}
+
+void pgn_export(Game *game, String_Builder *sb) {
+    // Header section
+    sb_appendf(sb, "[Event \"michabay05's local tournament\"]\n");
+    sb_appendf(sb, "[Site \"michabay05's computer\"]\n");
+
+    time_t current = time(NULL);
+    struct tm *curr_tm = localtime(&current);
+    sb_appendf(sb, "[Date \"%d.%02d.%02d\"]\n", curr_tm->tm_year + 1900, curr_tm->tm_mon + 1, curr_tm->tm_mday);
+    sb_appendf(sb, "[Time \"%02d:%02d:%02d\"]\n", curr_tm->tm_hour, curr_tm->tm_min, curr_tm->tm_sec);
+    sb_appendf(sb, "[Round \"??\"]\n");
+    if (game->white_name.count > 0) {
+        sb_appendf(sb, "[White \""SV_Fmt"\"]\n", SV_Arg(game->white_name));
+    } else {
+        sb_appendf(sb, "[White \"??\"]\n");
+    }
+    if (game->black_name.count > 0) {
+        sb_appendf(sb, "[Black \""SV_Fmt"\"]\n", SV_Arg(game->black_name));
+    } else {
+        sb_appendf(sb, "[Black \"??\"]\n");
+    }
+
+    sb_appendf(sb, "[Result \"%s\"]\n\n", PGN_GR_STRS[game->state]);
+
+    // Move section
+    char temp_buf[7] = {0};
+    Board board = {0};
+    board_parse_fen_cstr(&board, game->start_fen);
+
+    for (int i = 0; i < game->history.count; i++) {
+        Move move = game->history.items[i];
+        memset(temp_buf, 0, sizeof(temp_buf));
+        move_to_str(move, temp_buf);
+
+        Piece piece = board_get_piece(&board, move.source);
+        if (pgn__should_disambiguate(move, &board)) {
+            TODO("Handle disambiguation");
+        }
+
+        if (!move_make(&board, move, AllMoves)) {
+            UNREACHABLE("Illegal move found in game record\n");
+        }
+
+        if (i % 2 == 0) {
+            // White's move
+            sb_appendf(sb, "%d.%s", (i / 2) + 1, temp_buf);
+        } else {
+            // Black's move
+            sb_appendf(sb, " %s ", temp_buf);
+        }
+    }
+
+    sb_appendf(sb, " %s\n", PGN_GR_STRS[game->state]);
+}
+
+// is not end-of-line
+// static int is_not_eol(int c) { return c != '\r' && c != '\n'; }
+
+static char peek_ahead(String_View sv, size_t ahead) {
+    if (sv.count == 0)
+        return '\0';
+
+    return sv.data[ahead];
+}
+
+static String_View consume_ahead(String_View *sv, int n) {
+    if (sv->count == 0)
+        return (String_View){0};
+    return sv_chop_left(sv, n);
+}
+
+static int peek_while(String_View sv, int (*filter_func)(int c)) {
+    int len = 0;
+    while (filter_func(peek_ahead(sv, len))) {
+        // consume(sv);
+        len++;
+    }
+
+    return len;
+}
+
+static void consume_while(String_View *out, String_View *sv, int (*filter_func)(int c)) {
+    int len = 0;
+    while (filter_func(peek_ahead(*sv, len))) {
+        // consume(sv);
+        len++;
+    }
+
+    String_View temp = sv_chop_left(sv, len);
+    if (out != NULL)
+        *out = temp;
+}

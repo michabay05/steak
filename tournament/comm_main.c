@@ -7,6 +7,8 @@
 #include "move_gen.h"
 #include "precalculate.h"
 
+#include "pgn.h"
+
 #define BUF_SIZE 64 * 1024
 
 int is_space(int c) { return isspace(c); }
@@ -54,53 +56,24 @@ static void eo_parse_go(String_View sv, Move *best_move) {
     }
 }
 
-typedef struct {
-    // Input and output file descriptors
-    int read_fd;
-    int write_fd;
-} Engine;
+typedef Pipe Engine;
 
-typedef enum {
-    GS_ONGOING,
-    GS_WHITE_WINS,
-    GS_BLACK_WINS,
-    GS_DRAW,
-} GameState;
-
-GameState check_game_state(MoveList *ml, Board *board) {
+PGN_GameResult game_check_state(MoveList *ml, Board *board) {
     ml->count = 0;
     movelist_legal(ml, board);
-    if (ml->count > 0) return GS_ONGOING;
-
-    movelist_print_list(*ml);
+    if (ml->count > 0) return PGN_GR_ONGOING;
 
     if (board_is_sq_attacked(board,
         board->piece[board->side][PT_KING],
         board->side ^ 1
-    )) return board->side == C_WHITE ? GS_BLACK_WINS : GS_WHITE_WINS;
-    else return GS_DRAW;
+    )) return board->side == C_WHITE ? PGN_GR_BLACK_WINS : PGN_GR_WHITE_WINS;
+    else return PGN_GR_DRAW;
 }
 
 int engine_read(Engine engine, char *buf, size_t size);
 int engine_write(Engine engine, char *command);
 bool engine_load(const char *filepath, Engine *engine);
 void engine_unload(Engine engine);
-
-int main2(void) {
-    const char *fen = "r2qk2r/pppbp3/2n3NB/3pP3/3P4/2P5/PP4PP/RN1QK2R b KQkq - 0 12";
-    attack_init();
-
-    Board b = {0};
-    board_parse_fen_cstr(&b, fen);
-
-    MoveList ml = {0};
-    movelist_generate_all(&ml, &b);
-    movelist_print_list(ml);
-
-    movelist_legal(&ml, &b);
-    movelist_print_list(ml);
-    return 0;
-}
 
 int main(int argc, char **argv) {
     const char *program_name = shift_args(&argc, &argv);
@@ -127,36 +100,39 @@ int main(int argc, char **argv) {
     attack_init();
 
     char temp_buf[BUF_SIZE] = {0};
-    const char *start_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-    u32 time_per_move = 1000;
-    Board board = {0};
-    board_parse_fen_cstr(&board, start_fen);
-    String_Builder input = {0};
-    String_Builder history = {0};
-    MoveList ml = {0};
-    GameState state = GS_ONGOING;
+    char *start_fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
+    MoveList temp_ml = {0};
+    String_Builder temp = {0};
+    String_Builder history = {0};
+    Game game = {
+        .time_per_move_s = 1.f,
+        .white_name = sv_from_cstr("??"),
+        .black_name = sv_from_cstr("??"),
+        .state = PGN_GR_ONGOING,
+        .start_fen = start_fen
+    };
+    board_parse_fen_cstr(&game.board, start_fen);
     Engine *current = &engine_a;
     bool is_a_current = true;
 
-    for (size_t i = 0; state == GS_ONGOING; i++) {
+    for (size_t move_counter = 0; game.state == PGN_GR_ONGOING; move_counter++) {
         memset(temp_buf, 0, BUF_SIZE);
+        temp.count = 0;
+        temp_ml.count = 0;
 
-        input.count = 0;
-        ml.count = 0;
-
-        sb_appendf(&input, "position fen %s", start_fen);
+        sb_appendf(&temp, "position fen %s", start_fen);
         if (history.count > 0) {
-            sb_append_cstr(&input, " moves ");
-            sb_append_buf(&input, history.items, history.count);
+            sb_append_cstr(&temp, " moves ");
+            sb_append_buf(&temp, history.items, history.count);
         }
-        sb_append(&input, '\n');
-        sb_appendf(&input, "go movetime %d\n", time_per_move);
+        sb_append(&temp, '\n');
+        sb_appendf(&temp, "go movetime %d\n", (u32)(game.time_per_move_s * 1000.f));
 
-        printf("%zu: [%s] << %s\n", i + 1, is_a_current ? engine_a_path : engine_b_path, input.items);
-        engine_write(*current, input.items);
+        printf("%zu: [%s] << %s\n", move_counter + 1, is_a_current ? engine_a_path : engine_b_path, temp.items);
+        engine_write(*current, temp.items);
 
-        usleep((u32)(1.1 * 1e6));
+        usleep((u32)((game.time_per_move_s + 0.1) * 1e6));
 
         if (engine_read(*current, temp_buf, BUF_SIZE) == 0) {
             fprintf(stderr, "[ERROR] Failed to communicate properly.\n");
@@ -171,48 +147,50 @@ int main(int argc, char **argv) {
         eo_parse_go(sv_from_cstr(temp_buf), &best_move);
 
         // Validate move
-        char move_buf[6] = {0};
+        char move_buf[7] = {0};
         move_to_str(best_move, move_buf);
         printf("[%s] >> '%s'\n", is_a_current ? engine_a_path : engine_b_path, move_buf);
 
-        movelist_generate_all(&ml, &board);
-        int ind = movelist_search(ml, best_move.source, best_move.target, best_move.promoted);
+        movelist_generate_all(&temp_ml, &game.board);
+        int ind = movelist_search(temp_ml, best_move.source, best_move.target, best_move.promoted);
         if (ind < 0) {
             fprintf(stderr, "[ERROR] Did not find move among legal moves: '%s'\n", move_buf);
-            movelist_print_list(ml);
+            movelist_print_list(temp_ml);
             break;
         }
 
-        for (int i = 0; i < ml.count; i++) {
-            Move move = ml.list[i];
-            if (move_eq(move, best_move) && move_make(&board, move, AllMoves)) {
-                break;
-            }
+        if (!move_make(&game.board, temp_ml.list[ind], AllMoves)) {
+            UNREACHABLE("[ERROR] Illegal move.");
         }
 
-        if (i > 0) sb_append(&history, ' ');
+        da_append(&game.history, temp_ml.list[ind]);
+        if (move_counter > 0) sb_append(&history, ' ');
         sb_appendf(&history, "%s", move_buf);
 
         current = is_a_current ? &engine_b : &engine_a;
         is_a_current = !is_a_current;
 
-        state = check_game_state(&ml, &board);
+        game.state = game_check_state(&temp_ml, &game.board);
     }
 
-    printf("Game state = %d\n", state);
-    board_print(&board);
+    printf("Game state = %d\n", game.state);
+    board_print(&game.board);
 
-    sb_free(input);
+    temp.count = 0;
+    pgn_export(&game, &temp);
+    write_entire_file("sf_vs_steak.pgn", temp.items, temp.count);
+
+    sb_free(temp);
     sb_free(history);
     return 0;
 }
 
 int engine_read(Engine engine, char *buf, size_t size) {
-    return read(engine.read_fd, buf, size);
+    return read(engine.read, buf, size);
 }
 
 int engine_write(Engine engine, char *command) {
-    return write(engine.write_fd, command, strlen(command));
+    return write(engine.write, command, strlen(command));
 }
 
 // This function is defined at the end of this file
@@ -221,14 +199,14 @@ static int bi_popen(const char *const command, int *const in, int *const out);
 
 bool engine_load(const char *filepath, Engine *engine) {
     *engine = (Engine){0};
-    const int pid = bi_popen(filepath, &engine->read_fd, &engine->write_fd);
+    const int pid = bi_popen(filepath, &engine->read, &engine->write);
     if (pid < 0) {
         perror("bi_popen");
         return false;
     }
 
-    if (engine->read_fd == INVALID_FD || engine->write_fd == INVALID_FD) {
-        fprintf(stderr, "Invalid fd: (read = %d, write = %d)\n", engine->read_fd, engine->write_fd);
+    if (engine->read == INVALID_FD || engine->write == INVALID_FD) {
+        fprintf(stderr, "Invalid fd: (read = %d, write = %d)\n", engine->read, engine->write);
         return false;
     }
 
@@ -255,8 +233,8 @@ bool engine_load(const char *filepath, Engine *engine) {
 }
 
 void engine_unload(Engine engine) {
-    close(engine.read_fd);
-    close(engine.write_fd);
+    close(engine.read);
+    close(engine.write);
 }
 
 // ========================================================================================================================

@@ -42,7 +42,7 @@ Move move_parse_cstr(char *move_str) {
 // QUIET is assigned to the returned move.
 Move move_parse_sv(String_View msv) {
     if (!(msv.count == 4 || msv.count == 5)) {
-        fprintf(stderr, "Illegal move string: '"SV_Fmt"'", SV_Arg(msv));
+        fprintf(stderr, "Illegal move string: '"SV_Fmt"'\n", SV_Arg(msv));
         UNREACHABLE("illegal move string during parsing");
     }
 

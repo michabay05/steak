@@ -80,6 +80,7 @@ static bool build_tournament(Cmd *cmd) {
 
     __add_comp_n_flags(cmd);
     __add_libchess(cmd);
+    cmd_append(cmd, "tournament/pgn.c");
     cmd_append(cmd, "tournament/comm_main.c");
     cmd_append(cmd, "-o", OUT_DIR"comm_main");
 
@@ -119,8 +120,8 @@ int main(int argc, char **argv) {
 
     if (nob_needs_rebuild1(OUT_DIR"libnob.a", "nob.h")) build_nob_static(&cmd);
 
-    if (!build_perft(&cmd)) return 1;
-    if (!build_tests(&cmd)) return 1;
+    // if (!build_perft(&cmd)) return 1;
+    // if (!build_tests(&cmd)) return 1;
     if (!build_tournament(&cmd)) return 1;
     if (!build_engine(&cmd)) return 1;
 
