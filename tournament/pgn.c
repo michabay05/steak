@@ -7,6 +7,7 @@
 
 #include "pgn.h"
 #include "board.h"
+#include "defs.h"
 #include "move.h"
 #include "move_gen.h"
 
@@ -265,19 +266,69 @@ bool pgn_is_valid(PGN *pgn) {
 static_assert(__count_pgn_gr == 4, "There should only be 4 game states.");
 static const char *PGN_GR_STRS[] = { "*", "1-0", "0-1", "1/2-1/2" };
 
-static int pgn__should_disambiguate(Move move, Board *board, Piece *piece, Move *other) {
-    MoveList ml = {0};
-    movelist_legal(&ml, board);
-    int count = 0;
+typedef enum {
+    DA_BY_NONE = 0x0,
+    DA_BY_FILE = 0x1,
+    DA_BY_RANK = 0x2,
+    DA_BY_BOTH = 0x3,
+} PGN_Disambiguate;
 
-    *piece = board_get_piece(board, move.source);
+static PGN_Disambiguate pgn__move_disambiguate_by(Move mv1, Board *board, PieceType pt) {
+    MoveList ml = {0};
+    movelist_generate_all(&ml, board);
+
+    File f1 = (File)COL(mv1.source);
+    Rank r1 = (Rank)ROW(mv1.source);
+    Bitboard bb = 0ULL;
+
     for (int i = 0; i < ml.count; i++) {
-        PieceType target_pt = board_get_piece(board, move.source).type;
-        if (move.target == ml.list[i].target && piece->type == target_pt) {
+        Move mv2 = ml.list[i];
+        PieceType target_pt = board_get_piece(board, mv2.source).type;
+        if (mv1.target == mv2.target && pt == target_pt) set_bit(bb, mv2.source);
+    }
+
+    PGN_Disambiguate pda = DA_BY_NONE;
+    if (bb_count(bb & RANK_MASK[r1]) > 1) pda |= DA_BY_FILE;
+    if (bb_count(bb & FILE_MASK[f1]) > 1) pda |= DA_BY_RANK;
+
+    return pda;
+}
+
+static void pgn__move_to_san(Move move, Board *board, String_Builder *sb) {
+    if (move.flag == MVF_Castling) {
+        if (COL(move.target) == FILE_G) sb_append_cstr(sb, "O-O");
+        else if (COL(move.target) == FILE_C) sb_append_cstr(sb, "O-O-O");
+        return;
+    }
+
+    PieceType pt = board_get_piece(board, move.source).type;
+    switch (pt) {
+        case PT_PAWN  : break;
+        case PT_KNIGHT: sb_append(sb, 'N'); break;
+        case PT_BISHOP: sb_append(sb, 'B'); break;
+        case PT_ROOK  : sb_append(sb, 'R'); break;
+        case PT_QUEEN : sb_append(sb, 'Q'); break;
+        case PT_KING  : sb_append(sb, 'K'); break;
+    }
+
+    char file_ltr = str_coords[move.source][0];
+    char rank_ltr = str_coords[move.source][1];
+    if (pt != PT_PAWN && pt != PT_KING) {
+        PGN_Disambiguate pda = pgn__move_disambiguate_by(move, board, pt);
+        switch (pda) {
+            case DA_BY_NONE: break;
+            case DA_BY_FILE: sb_append(sb, file_ltr); break;
+            case DA_BY_RANK: sb_append(sb, rank_ltr); break;
+            case DA_BY_BOTH: sb_append_cstr(sb, str_coords[move.source]); break;
         }
     }
 
-    return count;
+    if (move.flag == MVF_Capture || move.flag == MVF_Enpassant) {
+        if (pt == PT_PAWN) sb_append(sb, file_ltr);
+        sb_append(sb, 'x');
+    }
+
+    sb_append_cstr(sb, str_coords[move.target]);
 }
 
 void pgn_export(Game *game, String_Builder *sb) {
@@ -304,19 +355,16 @@ void pgn_export(Game *game, String_Builder *sb) {
     sb_appendf(sb, "[Result \"%s\"]\n\n", PGN_GR_STRS[game->state]);
 
     // Move section
-    char temp_buf[7] = {0};
     Board board = {0};
     board_parse_fen_cstr(&board, game->start_fen);
+    String_Builder temp = {0};
 
     for (int i = 0; i < game->history.count; i++) {
-        Move move = game->history.items[i];
-        memset(temp_buf, 0, sizeof(temp_buf));
-        move_to_str(move, temp_buf);
+        temp.count = 0;
 
-        Piece piece = board_get_piece(&board, move.source);
-        if (pgn__should_disambiguate(move, &board)) {
-            TODO("Handle disambiguation");
-        }
+        Move move = game->history.items[i];
+        pgn__move_to_san(move, &board, &temp);
+        sb_append_null(&temp);
 
         if (!move_make(&board, move, AllMoves)) {
             UNREACHABLE("Illegal move found in game record\n");
@@ -324,14 +372,15 @@ void pgn_export(Game *game, String_Builder *sb) {
 
         if (i % 2 == 0) {
             // White's move
-            sb_appendf(sb, "%d.%s", (i / 2) + 1, temp_buf);
+            sb_appendf(sb, "%d.%s", (i / 2) + 1, temp.items);
         } else {
             // Black's move
-            sb_appendf(sb, " %s ", temp_buf);
+            sb_appendf(sb, " %s ", temp.items);
         }
     }
 
     sb_appendf(sb, " %s\n", PGN_GR_STRS[game->state]);
+    sb_free(temp);
 }
 
 // is not end-of-line

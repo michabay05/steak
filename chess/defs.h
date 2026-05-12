@@ -53,6 +53,7 @@ static_assert(FILE_COUNT == 8, "There needs to be 8 files (columns).");
 extern const char *str_coords[66];
 extern const char *piece_char[2];
 extern const Bitboard RANK_MASK[8];
+extern const Bitboard FILE_MASK[8];
 
 #define ROW(sq) (((Sq)sq) >> 3)
 #define COL(sq) (((Sq)sq) & 7)

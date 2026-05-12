@@ -11,9 +11,6 @@
 
 #define BUF_SIZE 64 * 1024
 
-int is_space(int c) { return isspace(c); }
-// is alphabetic or numeric
-int is_alnum(int c) { return isalnum(c); }
 // is not end-of-line
 int is_not_eol(int c) { return c != '\r' && c != '\n'; }
 

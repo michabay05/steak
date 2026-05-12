@@ -100,13 +100,8 @@ bool move_make(Board *main, Move move, MoveType move_flag) {
 
     // If move is promotion, change the pawn to the desired piece
     if (move.promoted != PT_NONE) {
-        Piece prom_piece = {
-            .color = TO_BOOL(move.target & RANK_MASK[RANK_1]),
-            .type = move.promoted
-        };
-
         pop_bit(main->piece[piece.color][piece.type], move.target);
-        set_bit(main->piece[prom_piece.color][prom_piece.type], move.target);
+        set_bit(main->piece[piece.color][move.promoted], move.target);
     }
 
     // Unlike other captures, make sure to remove the "enpassant'd" pawn from the enemy bitboard
