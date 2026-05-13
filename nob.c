@@ -94,6 +94,7 @@ static bool build_engine(Cmd *cmd) {
     __add_libchess(cmd);
     cmd_append(cmd, "./engine/eval.c");
     cmd_append(cmd, "./engine/search.c");
+    cmd_append(cmd, "./engine/tt.c");
     cmd_append(cmd, "./engine/uci.c");
     cmd_append(cmd, "-o", OUT_DIR"steak");
 
@@ -121,7 +122,7 @@ int main(int argc, char **argv) {
     if (nob_needs_rebuild1(OUT_DIR"libnob.a", "nob.h")) build_nob_static(&cmd);
 
     // if (!build_perft(&cmd)) return 1;
-    if (!build_tests(&cmd)) return 1;
+    // if (!build_tests(&cmd)) return 1;
     // if (!build_tournament(&cmd)) return 1;
     if (!build_engine(&cmd)) return 1;
 

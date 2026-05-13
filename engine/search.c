@@ -2,6 +2,8 @@
 
 #include "move.h"
 #include "move_gen.h"
+#include "tt.h"
+#include "zobrist.h"
 
 // NOTE: Most valuable victim, Least valuable attacker
 // The primary idea behind this is to guide the move ordering process.
@@ -181,6 +183,9 @@ int quiescence(Board *board, int alpha, int beta) {
 
     int eval = evaluate(board);
 
+    // Exit condition: TOO_DEEP_IN_SEARCH_TREE (may even overflow some arrays)
+    if (S_INFO.ply > MAX_PLY - 1) return eval;
+
     // Fail-hard beta cutoff: node (move) fails high
     if (eval >= beta) return beta;
 
@@ -210,13 +215,13 @@ int quiescence(Board *board, int alpha, int beta) {
         // If time is up, return quickly
         if (U_INFO.stopped) return 0;
 
-        // Fail-hard beta cutoff: node (move) fails high
-        if (score >= beta) return beta;
-
         if (score > alpha) {
             // A better move has been found
             // PV node (move)
             alpha = score;
+
+            // Fail-hard beta cutoff: node (move) fails high
+            if (score >= beta) return beta;
         }
     }
 
@@ -242,11 +247,21 @@ int quiescence(Board *board, int alpha, int beta) {
 // considered to be the best. As a result, the lower bound (alpha) is updated
 // to be this score because any score less than this new alpha would be ignored.
 int negamax(Board *board, int alpha, int beta, int depth) {
+    int score;
+    // By default, the assumption is as low as possible (aka. fail-low). It is assumed that the
+    // moves searched here will not increase the value of alpha. This flag will be changed
+    // throughout the search below when this assumption is invalidated.
+    TT_HashFlag thf = THF_ALPHA;
+    // Check if this position has been searched before...
+    if (S_INFO.ply && (score = tt_read(board->key, alpha, beta, depth)) != TT_NO_ENTRY) {
+        // If it has been before, just return the score from the previous search, which saves a lot
+        // of search time.
+        return score;
+    }
+
     if ((S_INFO.nodes & 2047) == 0) {
         _uci_checkup();
     }
-
-    // bool found_pv = true;
 
     S_INFO.pv_length[S_INFO.ply] = S_INFO.ply;
 
@@ -273,16 +288,24 @@ int negamax(Board *board, int alpha, int beta, int depth) {
         // Preserve board state
         Board clone = *board;
 
-        // Switch sides (essentially gifting the opponent an extra move)
-        board_change_side(board);
+        S_INFO.ply++;
 
+        if (board->enpassant != SQ_NONE) {
+            zobrist_update_enpassant(board, board->enpassant);
+        }
         // Reset enpassant square (b/c on the opponent's additional move we
         // don't want the opponent to make an enpassant capture...as it does
         // not make any sense to do so)
         board->enpassant = SQ_NONE;
 
+        // Switch sides (essentially gifting the opponent an extra move)
+        board_change_side(board);
+        zobrist_toggle_side(board);
+
         // Search moves with reduced depht to find beta cutoffs
-        int score = -negamax(board, -beta, -beta + 1, depth - 1 - NULL_MOVE_REDUCTION);
+        score = -negamax(board, -beta, -beta + 1, depth - 1 - NULL_MOVE_REDUCTION);
+
+        S_INFO.ply--;
 
         // Take move back
         *board = clone;
@@ -311,7 +334,6 @@ int negamax(Board *board, int alpha, int beta, int depth) {
         }
         legal_move_count++;
 
-        int score;
         if (moves_searched == 0) {
             score = -negamax(board, -beta, -alpha, depth - 1);
         } else {
@@ -361,16 +383,10 @@ int negamax(Board *board, int alpha, int beta, int depth) {
 
         moves_searched++;
 
-        // Fail-hard beta cutoff: node (move) fails high
-        if (score >= beta) {
-            if (mv.flag != MVF_Capture) {
-                S_INFO.killer_moves[1][S_INFO.ply] = S_INFO.killer_moves[0][S_INFO.ply];
-                S_INFO.killer_moves[0][S_INFO.ply] = mv;
-            }
-            return beta;
-        }
-
         if (score > alpha) {
+            // Because the alpha (lower bound) has been increased, the _exact_ value will be stored in the transposition table.
+            thf = THF_EXACT;
+
             // A better move has been found
             if (mv.flag != MVF_Capture) {
                 S_INFO.history_moves[PIECE_IND(board_get_piece(board, mv.source))][mv.target] += depth;
@@ -389,6 +405,18 @@ int negamax(Board *board, int alpha, int beta, int depth) {
 
             // Adjust PV length
             S_INFO.pv_length[S_INFO.ply] = S_INFO.pv_length[S_INFO.ply + 1];
+
+            // Fail-hard beta cutoff: node (move) fails high
+            if (score >= beta) {
+                tt_write(board->key, beta, depth, THF_BETA);
+
+                if (mv.flag != MVF_Capture) {
+                    S_INFO.killer_moves[1][S_INFO.ply] = S_INFO.killer_moves[0][S_INFO.ply];
+                    S_INFO.killer_moves[0][S_INFO.ply] = mv;
+                }
+                return beta;
+            }
+
         }
     }
 
@@ -408,6 +436,8 @@ int negamax(Board *board, int alpha, int beta, int depth) {
         }
     }
 
+    tt_write(board->key, alpha, depth, thf);
+
     // Node (move) fails low
     return alpha;
 }
@@ -425,6 +455,8 @@ void search_position(Board *board, int depth) {
     memset(S_INFO.history_moves, 0, sizeof(S_INFO.history_moves));
     memset(S_INFO.pv_length, 0, sizeof(S_INFO.pv_length));
     memset(S_INFO.pv_table, 0, sizeof(S_INFO.pv_table));
+
+    tt_clear();
 
     char buf[6] = {0};
     int alpha = -INFINITY, beta = INFINITY;

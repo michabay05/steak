@@ -3,6 +3,7 @@
 #include "move.h"
 #include "move_gen.h"
 #include "precalculate.h"
+#include "tt.h"
 
 #define INPUT_BUFSZ 8*1024
 
@@ -154,6 +155,7 @@ void uci_parse(String_View args) {
         // TODO: ucinewgame indicates the start of a new game. Find out what could be done upon this
         // message being received. Maybe clearing the transposition table, in the future.
         _uci_parse_position(sv_from_cstr("startpos"));
+        tt_clear();
     } else if (sv_eq(first, sv_from_cstr("position"))) {
         _uci_parse_position(args);
     } else if (sv_eq(first, sv_from_cstr("go"))) {
@@ -164,9 +166,11 @@ void uci_parse(String_View args) {
 int main(void) {
     attack_init();
     zobrist_init();
-    char buffer[INPUT_BUFSZ] = {0};
+    tt_clear();
 
+    char buffer[INPUT_BUFSZ] = {0};
     uci_parse(sv_from_cstr("uci"));
+
     while (!U_INFO.quit) {
         memset(buffer, 0, INPUT_BUFSZ);
         fflush(stdout);
